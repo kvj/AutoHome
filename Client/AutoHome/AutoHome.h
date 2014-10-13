@@ -19,6 +19,7 @@ typedef OutputBuffer* POutputBuffer;
 union Data {
 	byte bytes[32];
 	void *pointers[4];
+	unsigned long longs[8];
 };
 
 struct Sensor_Info {
@@ -47,4 +48,6 @@ struct Sensor_Type_Info {
 
 PSensorInfo root_new_sensor_info(PSensorTypeInfo info, int index);
 void root_add_measure(POutputBuffer buffer, PSensorInfo pinfo, byte index, byte measure);
+void root_new_command(PSensorInfo, POutputBuffer, byte);
+bool root_send_output(POutputBuffer);
 #endif
