@@ -13,6 +13,11 @@ static void light_on_create(PSensorTypeInfo info) {
 	}
 }
 
+static void light_on_measure(PSensorInfo pinfo, POutputBuffer buffer) {
+	byte current = (analogRead(pinfo->data.bytes[0]) / 4);
+	root_add_measure(&output, pinfo, 0, current);
+}
+
 static void light_on_loop(PSensorInfo pinfo) {
 	unsigned long now = millis();
 	unsigned long last_time = pinfo->data.longs[1];
@@ -24,7 +29,7 @@ static void light_on_loop(PSensorInfo pinfo) {
 	pinfo->data.longs[1] = now;
 
 	OutputBuffer output;
-	root_new_command(pinfo, &output, CMD_MEASURE);
-	root_add_measure(&output, pinfo, 0, current);
-	root_send_output(&output);
+	// root_new_command(pinfo, &output, CMD_MEASURE);
+	// root_add_measure(&output, pinfo, 0, current);
+	// root_send_output(&output);
 }

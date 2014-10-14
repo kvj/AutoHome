@@ -10,7 +10,7 @@
 SensorTypeInfo sensorTypes[SENSOR_TYPES] = {
 	{0, dht_on_create, NULL, NULL, dht_on_measure, NULL},
 	{1, movement_on_create, NULL, movement_on_loop, NULL, NULL},
-	{2, light_on_create, NULL, light_on_loop, NULL, NULL},
+	{2, light_on_create, NULL, light_on_loop, light_on_measure, NULL},
 };
 
 PSensorInfo sensors[32];
