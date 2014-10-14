@@ -36,7 +36,7 @@ func (self *SerialConnection) listen() {
 					Type:    int(buffer[i]),
 					Sensor:  int(buffer[i+1]),
 					Measure: int(buffer[i+2]),
-					Value:   float32(buffer[i+3]),
+					Value:   float64(buffer[i+3]),
 				}
 				//log.Printf("Message prepared:", message)
 				self.queue <- message
