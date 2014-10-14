@@ -7,7 +7,7 @@ static void movement_on_create(PSensorTypeInfo info) {
 		// Create
 		PSensorInfo pinfo = root_new_sensor_info(info, i);
 		pinfo->data.bytes[0] = pins[i];
-		pinfo->data.bytes[1] = 0; // No movement
+		pinfo->data.bytes[1] = 2; // Will report first value
 		pinfo->data.longs[1] = millis();
 		pinMode(pins[i], INPUT);
 	}
@@ -18,16 +18,16 @@ static void movement_on_loop(PSensorInfo pinfo) {
 	byte last = pinfo->data.bytes[1];
 	unsigned long now = millis();
 	unsigned long last_time = pinfo->data.longs[1];
-	if (last == 1 && now - last_time < Movement_TreshholdMSEC) {
-		// In movement now, but too early
+	if (last == value) {
+		// Not changed - skip
 		if (value == 1) {
 			// Update time when movement detected
 			pinfo->data.longs[1] = now;
 		}
 		return;
 	}
-	if (last == value) {
-		// Not changed - skip
+	if (last == 1 && now - last_time < Movement_TreshholdMSEC) {
+		// Not in movement now, but too early
 		return;
 	}
 	// 1. Changed from 0 to 1 - movement detected
