@@ -68,6 +68,12 @@ func (self *arduinoTalker) AddDevice(connection *SerialConnection) {
 	model.AddCalculator(index, 0, 1, &model.AverageCalculator{
 		Max: 10,
 	})
+	model.AddCalculator(index, 2, 0, &model.AverageLimitCalculator{
+		AverageCalculator: model.AverageCalculator{
+			Max: 30,
+		},
+		Limit: 10,
+	})
 	c := connection.Connect()
 	go func() {
 		for message := range c {

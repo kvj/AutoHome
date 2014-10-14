@@ -1,7 +1,8 @@
 package model
 
 import (
-//"log"
+	//"log"
+	"math"
 )
 
 type Calculator interface {
@@ -11,7 +12,12 @@ type Calculator interface {
 type AverageCalculator struct {
 	Max   int
 	times int
-	value float32
+	value float64
+}
+
+func (self *AverageCalculator) reset() {
+	self.times = 0
+	self.value = 0
 }
 
 func (self *AverageCalculator) Calculate(message *MeasureMessage) *MeasureMessage {
@@ -19,9 +25,32 @@ func (self *AverageCalculator) Calculate(message *MeasureMessage) *MeasureMessag
 	self.times++
 	// log.Printf("Average %v %v:", self, message)
 	if self.times >= self.Max {
-		message.Value = self.value / float32(self.times)
-		self.times = 0
-		self.value = 0
+		message.Value = self.value / float64(self.times)
+		self.reset()
+		return message
+	}
+	return nil
+}
+
+type AverageLimitCalculator struct {
+	AverageCalculator
+	Limit float64
+	prev  float64
+}
+
+func (self *AverageLimitCalculator) Calculate(message *MeasureMessage) *MeasureMessage {
+	prev := self.prev
+	self.prev = message.Value
+	if math.Abs(prev-message.Value) > self.Limit {
+		self.reset()
+		return message // Dropped over limit
+	}
+	self.value += message.Value
+	self.times++
+	// log.Printf("Average %v %v:", self, message)
+	if self.times >= self.Max {
+		message.Value = self.value / float64(self.times)
+		self.reset()
 		return message
 	}
 	return nil
