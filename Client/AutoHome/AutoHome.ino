@@ -7,6 +7,8 @@
 
 #define SENSOR_TYPES 3
 
+// #define AH_DEBUG
+
 SensorTypeInfo sensorTypes[SENSOR_TYPES] = {
 	{0, dht_on_create, NULL, NULL, dht_on_measure, NULL},
 	{1, movement_on_create, NULL, movement_on_loop, NULL, NULL},
@@ -29,9 +31,21 @@ void root_add_measure(POutputBuffer buffer, PSensorInfo pinfo, byte index, byte 
 	buffer->buffer[buffer->size++] = pinfo->index;
 	buffer->buffer[buffer->size++] = index;
 	buffer->buffer[buffer->size++] = measure;
+	#ifdef AH_DEBUG
+	Serial.print("Add measure: ");
+	Serial.println(measure);
+	#endif
 }
 
 bool root_send_output(POutputBuffer buffer) {
+	#ifdef AH_DEBUG
+	Serial.print("Send output: ");
+	Serial.println(buffer->size);
+	return true;
+	#endif
+	if (buffer->size == 13) {
+		buffer->size++; // Fix CRLF problem
+	}
 	Serial.write(buffer->size);
 	int sent = Serial.write(buffer->buffer, buffer->size);
 	Serial.flush();
@@ -112,6 +126,7 @@ void loop() {
 			info->on_measure(pinfo, &output);
 		}
 	}
+	root_send_output(&output);
 	return;
 
 	#endif

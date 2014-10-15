@@ -15,7 +15,11 @@ static void light_on_create(PSensorTypeInfo info) {
 
 static void light_on_measure(PSensorInfo pinfo, POutputBuffer buffer) {
 	byte current = (analogRead(pinfo->data.bytes[0]) / 4);
-	root_add_measure(&output, pinfo, 0, current);
+	#ifdef AH_DEBUG
+	Serial.print("Light measure: ");
+	Serial.println(current);
+	#endif
+	root_add_measure(buffer, pinfo, 0, current);
 }
 
 static void light_on_loop(PSensorInfo pinfo) {
