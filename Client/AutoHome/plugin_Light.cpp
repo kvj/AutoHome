@@ -14,7 +14,12 @@ static void light_on_create(PSensorTypeInfo info) {
 }
 
 static void light_on_measure(PSensorInfo pinfo, POutputBuffer buffer) {
-	byte current = (analogRead(pinfo->data.bytes[0]) / 4);
+	int value = analogRead(pinfo->data.bytes[0]) / 4;
+	if (value >= 256) {
+		// Too large
+		value = 255;
+	}
+	byte current = (byte)value;
 	#ifdef AH_DEBUG
 	Serial.print("Light measure: ");
 	Serial.println(current);

@@ -10,7 +10,7 @@
 
 #ifdef DEVICE_CONFIG_0
 	#define DHT_PINS_COUNT 1
-	#define DHT_PINS {6}
+	#define DHT_PINS {5}
 	#define Movement_PINS_COUNT 1
 	#define Movement_PINS {4}
 	#define Light_PINS_COUNT 1

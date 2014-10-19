@@ -38,5 +38,5 @@ static void movement_on_loop(PSensorInfo pinfo) {
 	root_new_command(pinfo, &output, CMD_MEASURE);
 	root_add_measure(&output, pinfo, 0, value);
 	root_send_output(&output);
-	digitalWrite(LED_PIN, value == 1? HIGH: LOW);
+	// digitalWrite(LED_PIN, value == 1? HIGH: LOW);
 }
