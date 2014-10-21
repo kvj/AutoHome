@@ -18,6 +18,7 @@ const (
 
 type SerialConnection struct {
 	Device  string
+	Index   int
 	state   int
 	current io.WriteCloser
 	queue   chan *model.MeasureMessage
@@ -30,6 +31,7 @@ func (self *SerialConnection) listen() {
 			return
 		}
 		// Some test
+		// log.Printf("Message %v: %q %v", self.Index, buffer, len(buffer))
 		if buffer[0] == Message_Measure {
 			for i := 1; i < len(buffer)-3; i += 4 {
 				message := &model.MeasureMessage{
@@ -38,12 +40,12 @@ func (self *SerialConnection) listen() {
 					Measure: int(buffer[i+2]),
 					Value:   float64(buffer[i+3]),
 				}
-				//log.Printf("Message prepared:", message)
+				// log.Printf("Message prepared:", message)
 				self.queue <- message
 			}
 			return
 		}
-		log.Printf("Unknown message %q %v", buffer, len(buffer))
+		log.Printf("Unknown message %v: %q %v", self.Index, buffer, len(buffer))
 	}
 	for {
 		if self.state == State_Closed {
@@ -65,13 +67,18 @@ func (self *SerialConnection) listen() {
 		for {
 			// Listen for messages
 			sizeBuf := make([]byte, 1)
-			_, err = s.Read(sizeBuf)
-			if err != nil {
-				log.Printf("Error reading size %v", err)
+			bytesRead, err := io.ReadFull(s, sizeBuf)
+			if err != nil || bytesRead != 1 {
+				log.Printf("Error reading size %v %v", err, bytesRead)
 				break
 			}
+			// log.Printf("Size came: %v: %v %v", self.Index, bytesRead, int(sizeBuf[0]))
+			if sizeBuf[0] == 0 {
+				continue
+			}
 			inBuf := make([]byte, sizeBuf[0])
-			_, err = s.Read(inBuf)
+			bytesRead, err = io.ReadFull(s, inBuf)
+			// log.Printf("Incoming size: %v: %v - %v: %v", self.Index, int(sizeBuf[0]), bytesRead, err)
 			if err != nil {
 				log.Printf("Error reading data %v", err)
 				break

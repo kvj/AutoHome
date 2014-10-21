@@ -15,9 +15,11 @@ func main() {
 	talker := serial.NewTalker(db)
 	talker.AddDevice(&serial.SerialConnection{
 		Device: "/dev/rfcomm0",
+		Index:  0,
 	})
 	talker.AddDevice(&serial.SerialConnection{
 		Device: "/dev/rfcomm1",
+		Index:  1,
 	})
 	talker.Start()
 }

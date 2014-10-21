@@ -77,6 +77,7 @@ func (self *arduinoTalker) AddDevice(connection *SerialConnection) {
 	c := connection.Connect()
 	go func() {
 		for message := range c {
+			// log.Printf("Message came: %v %v", index, message)
 			message = model.InvokeCalculator(index, message)
 			if message == nil {
 				continue
