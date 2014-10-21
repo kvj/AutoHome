@@ -2,6 +2,8 @@ package data
 
 import (
 	"database/sql"
+	"flag"
+	"fmt"
 	_ "github.com/lib/pq"
 	"kvj/autohome/model"
 	"log"
@@ -12,7 +14,19 @@ type DBProvider struct {
 	db *sql.DB
 }
 
-func OpenDB(url string) (*DBProvider, error) {
+type HashMap map[string]string
+
+func OpenDB() (*DBProvider, error) {
+	config := MakeConfig()
+	if nil == config {
+		log.Fatal("Invalid config")
+	}
+	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
+		config["dbuser"],
+		config["dbpass"],
+		config["dbhost"],
+		config["dbport"],
+		config["db"])
 	db, err := sql.Open("postgres", url)
 	if err != nil {
 		log.Printf("DB open error: %v", err)
@@ -39,4 +53,24 @@ func (self *DBProvider) AddMeasure(device int, measure *model.MeasureMessage) er
 	}
 	tx.Commit()
 	return nil
+}
+
+func MakeConfig() HashMap {
+	var result = HashMap{}
+	var dbVar = flag.String("db", "arduino", "DB Name")
+	var dbhostVar = flag.String("dbhost", "localhost", "DB Hostname")
+	var dbportVar = flag.String("dbport", "5432", "DB Port")
+	var dbuserVar = flag.String("dbuser", "arduino", "DB Username")
+	var dbpassVar = flag.String("dbpass", "arduino", "DB Password")
+	flag.Parse()
+	if !flag.Parsed() {
+		flag.PrintDefaults()
+		return nil
+	}
+	result["dbhost"] = *dbhostVar
+	result["dbport"] = *dbportVar
+	result["db"] = *dbVar
+	result["dbuser"] = *dbuserVar
+	result["dbpass"] = *dbpassVar
+	return result
 }
