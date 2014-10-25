@@ -59,6 +59,19 @@ func (self *arduinoTalker) Start() {
 	}
 }
 
+func (self *arduinoTalker) AddMessageProvider(index int, ch model.MMChannel) {
+	go func() {
+		for message := range ch {
+			// log.Printf("Message came: %v %v", index, message)
+			log.Printf("Message[P]: %v %v", index, message)
+			err := self.db.AddMeasure(index, message)
+			if err != nil {
+				log.Printf("Error: %v", err)
+			}
+		}
+	}()
+}
+
 func (self *arduinoTalker) AddDevice(connection *SerialConnection) {
 	index := len(self.devices)
 	self.devices = append(self.devices, connection)
