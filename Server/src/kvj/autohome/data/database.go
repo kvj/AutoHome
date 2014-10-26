@@ -62,6 +62,8 @@ func MakeConfig() HashMap {
 	var dbportVar = flag.String("dbport", "5432", "DB Port")
 	var dbuserVar = flag.String("dbuser", "arduino", "DB Username")
 	var dbpassVar = flag.String("dbpass", "arduino", "DB Password")
+	var portVar = flag.String("port", "9100", "HTTP port")
+	var pathVar = flag.String("path", "../Web", "Data folder")
 	flag.Parse()
 	if !flag.Parsed() {
 		flag.PrintDefaults()
@@ -72,5 +74,7 @@ func MakeConfig() HashMap {
 	result["db"] = *dbVar
 	result["dbuser"] = *dbuserVar
 	result["dbpass"] = *dbpassVar
+	result["port"] = *portVar
+	result["path"] = *pathVar
 	return result
 }
