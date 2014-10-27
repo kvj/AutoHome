@@ -2,3 +2,5 @@ config.json
 node_modules
 static/js
 static/css
+static/coffee/*.js
+

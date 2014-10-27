@@ -1,0 +1,24 @@
+.flex (@val: 0) {
+    -webkit-box-flex: @val;
+    flex: @val 1 auto;
+}
+
+.flex_group (@val: 0) {
+    -webkit-box-ordinal-group: @val;
+    order: @val;
+}
+
+.flex_vertical () {
+    display: -webkit-box;
+    display: flex;
+    flex-direction: column;
+    -webkit-box-orient: vertical;
+}
+
+.flex_horizontal () {
+    display: -webkit-box;
+    display: flex;
+    flex-direction: row;
+    -webkit-box-orient: horizontal;
+}
+
