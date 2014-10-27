@@ -1,0 +1,13 @@
+{
+  "name": "autohome-web",
+  "version": "0.0.1",
+  "devDependencies": {
+    "gulp": "latest",
+    "gulp-util": "latest",
+    "gulp-watch": "latest",
+    "gulp-coffee": "latest",
+    "gulp-less": "latest",
+    "gulp-order": "latest",
+    "gulp-concat": "latest"
+  }
+}
