@@ -118,12 +118,19 @@ type weatherMeasure struct {
 }
 
 func current2WeatherMeasure(current jsonConditionsResponse) weatherMeasure {
+	var humidity float64
+	if len(current.Relative_humidity) > 1 {
+		humidity = str2Float(current.Relative_humidity[0 : len(current.Relative_humidity)-1])
+	} else {
+		// Invalid value
+		humidity = 0
+	}
 	return weatherMeasure{
 		temp:     current.Temp_c,
 		wind:     current.Wind_degrees,
 		wspeed:   current.Wind_kph,
 		weather:  float64(icon2Code(current.Icon)),
-		humidity: str2Float(current.Relative_humidity[0 : len(current.Relative_humidity)-1]),
+		humidity: humidity,
 		rain:     str2Float(current.Precip_today_metric),
 		feels:    str2Float(current.Feelslike_c),
 		pressure: str2Float(current.Pressure_mb),
