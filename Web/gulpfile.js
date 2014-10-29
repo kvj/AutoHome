@@ -17,7 +17,7 @@ gulp.task('less', function() {
     return gulp
         .src(lessPath).pipe(watch(lessPath, function(files) {
             return files.pipe(less({
-            })).pipe(concat('app.css')).pipe(gulp.dest(cssPath));
+            })).pipe(gulp.dest(cssPath));
         }));
 });
 
@@ -26,7 +26,7 @@ gulp.task('coffee', function() {
         .src(coffeePath).pipe(watch(coffeePath, function(files) {
             return files.pipe(coffee({
                 bare: true
-            }).on('error', gutil.log)).pipe(concat('app.js')).pipe(gulp.dest(jsPath));
+            }).on('error', gutil.log)).pipe(gulp.dest(jsPath));
         }));
 });
 

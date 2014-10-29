@@ -1,5 +1,7 @@
 @import "_functions.less";
 
+@neutral-color: #909090;
+
 html {
     width: 100%;
     height: 100%;
@@ -8,4 +10,107 @@ html {
 body {
     padding: 0;
     margin: 0;
+    font-size: 1em;
+    width: 100%;
+    height: 100%;
+}
+
+.round-btn {
+    background-color: #a0a0a0;
+    height: 3em;
+    border-radius: 1.5em;
+    border: 2px solid @neutral-color;
+    // box-shadow: 2px 2px 3px @neutral-color;
+    min-width: 3em;
+    margin: 3px;
+    padding: 2px;
+    text-align: center;
+    vertical-align: middle;
+    .fa {
+        font-size: 2em;
+    }
+    .text {
+        font-size: 1.5em;
+        font-weight: bold;
+        font-family: monospace;
+    }
+}
+
+.really-round {
+    width: 3em;
+}
+
+.btn-dark {
+}
+
+.almost-hidden {
+    opacity: 0.1;
+}
+
+.main {
+    .flex_vertical();
+    background-color: #ffffff;
+    .round-btn {
+        color: #ffffff;
+    }
+}
+
+.main-dark {
+    background-color: #000000;
+    .round-btn {
+        background-color: @neutral-color;
+    }
+}
+
+.main-menu {
+    padding: 5px;
+    height: 5em;
+    text-align: right;
+    line-height: 5em;
+    .flex(0);
+}
+
+.main-area {
+    .flex(1);
+    .flex_vertical();
+    .flex_align(center);
+    .flex_cross_align(center);
+}
+
+.main-surface {
+    .flex(0);
+    width: 1000px;
+    height: 1000px;
+    max-width: 100%;
+    max-height: 100%;
+    box-sizing: border-box;
+    background-color: rgba(127, 127, 127, 0.2);
+    position: relative;
+}
+
+@media screen and (min-aspect-ratio: 1/1) {
+    .main {
+        .flex_horizontal();
+    }
+
+    .main-menu {
+        width: 5em;
+        height: auto;
+        text-align: center;
+        line-height: 3em;
+    }
+}
+
+.room-wrap {
+    position: absolute;
+    box-sizing: border-box;
+    .flex_vertical();
+}
+
+.room {
+    .flex(1);
+    border: 1px solid @neutral-color;
+    border-radius: 6px;
+    box-shadow: 0 0 5px @neutral-color;
+    margin: 5px;
 }
