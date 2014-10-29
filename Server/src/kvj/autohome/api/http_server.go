@@ -13,7 +13,12 @@ import (
 	"path/filepath"
 )
 
-func dataFolder(config data.HashMap) string {
+var (
+	dbProvider *data.DBProvider
+	config     data.HashMap
+)
+
+func dataFolder() string {
 	dataPath, err := filepath.Abs(config["path"])
 	if err != nil {
 		log.Fatal("Data folder not found: %v", config["path"])
@@ -36,13 +41,15 @@ var mimes = map[string]string{
 type jsonEmpty struct{}
 
 type appSensor struct {
-	Device  int    `json:"device"`
-	Type    int    `json:"type"`
-	Index   int    `json:"index"`
-	Measure int    `json:"measure"`
-	Plugin  string `json:"plugin"`
-	Extra   string `json:"extra"`
-	Revert  bool   `json:"revert"`
+	Device    int     `json:"device"`
+	Type      int     `json:"type"`
+	Index     int     `json:"index"`
+	Measure   int     `json:"measure"`
+	Plugin    string  `json:"plugin"`
+	Extra     string  `json:"extra"`
+	Revert    bool    `json:"revert"`
+	Value     float64 `json:"value"`
+	Timestamp int64   `json:"ts"`
 }
 
 type appLayout struct {
@@ -50,13 +57,17 @@ type appLayout struct {
 	Sensors  []appSensor `json:"sensors"`
 }
 
+type appSensors struct {
+	Sensors []appSensor `json:"sensors"`
+}
+
 type appConfig struct {
 	Keys   []string    `json:"keys"`
 	Layout []appLayout `json:"layout"`
 }
 
-func loadConfig(config data.HashMap) *appConfig {
-	folder := dataFolder(config)
+func loadConfig() *appConfig {
+	folder := dataFolder()
 	file, err := os.Open(path.Join(folder, config["config"]))
 	if err != nil {
 		log.Fatal("Config file not found: %v", config["config"])
@@ -74,16 +85,35 @@ func loadConfig(config data.HashMap) *appConfig {
 	return obj
 }
 
-func confApiHandler(config data.HashMap, body interface{}) (interface{}, string) {
-	return loadConfig(config), ""
+func confApiHandler(body interface{}) (interface{}, string) {
+	return loadConfig(), ""
+}
+
+func latestApiHandler(body interface{}) (interface{}, string) {
+	sensorsBody, ok := body.(*appSensors)
+	if !ok {
+		return nil, "Input data error"
+	}
+	for idx, _ := range sensorsBody.Sensors {
+		sensor := &sensorsBody.Sensors[idx]
+		value, time, err := dbProvider.LatestMeasure(sensor.Device, sensor.Type, sensor.Index, sensor.Measure)
+		if err != nil {
+			log.Printf("Failed to load data: %v", err)
+			return nil, "DB error"
+		}
+		// log.Printf("Data loaded: %v %v", value, time.Unix())
+		sensor.Value = value
+		sensor.Timestamp = time.Unix()
+	}
+	return sensorsBody, ""
 }
 
 type jsonFactory func() interface{}
-type apiHandler func(config data.HashMap, body interface{}) (interface{}, string)
+type apiHandler func(body interface{}) (interface{}, string)
 type httpHandler func(w http.ResponseWriter, r *http.Request)
 
-func addApiCall(config data.HashMap, factory jsonFactory, handler apiHandler) httpHandler {
-	conf := loadConfig(config)
+func addApiCall(factory jsonFactory, handler apiHandler) httpHandler {
+	conf := loadConfig()
 	return func(w http.ResponseWriter, r *http.Request) {
 		key := r.Header.Get("X-Key")
 		keyPresent := false
@@ -111,7 +141,7 @@ func addApiCall(config data.HashMap, factory jsonFactory, handler apiHandler) ht
 			http.Error(w, "Request error", 500)
 			return
 		}
-		bodyOut, errStr := handler(config, body)
+		bodyOut, errStr := handler(body)
 		if errStr != "" {
 			log.Printf("Internal error: %s", errStr)
 			http.Error(w, errStr, 403)
@@ -128,8 +158,8 @@ func addApiCall(config data.HashMap, factory jsonFactory, handler apiHandler) ht
 	}
 }
 
-func setupStatic(conf data.HashMap) {
-	dataPath := dataFolder(conf)
+func setupStatic() {
+	dataPath := dataFolder()
 	oneFile := func(path string, w http.ResponseWriter, r *http.Request) {
 		fileName := fmt.Sprintf("%s/%s", dataPath, path)
 		ext := filepath.Ext(fileName)[1:]
@@ -151,13 +181,18 @@ func setupStatic(conf data.HashMap) {
 	http.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) {
 		oneFile(r.URL.Path[1:], w, r)
 	})
-	http.HandleFunc("/api/config", addApiCall(conf, func() interface{} {
-		return &jsonEmpty{}
-	}, confApiHandler))
 }
 
-func StartServer(conf data.HashMap) {
-	setupStatic(conf)
-	panic(http.ListenAndServe(fmt.Sprintf(":%s", conf["port"]), nil))
+func StartServer(conf data.HashMap, db *data.DBProvider) {
+	dbProvider = db
+	config = conf
+	setupStatic()
+	http.HandleFunc("/api/config", addApiCall(func() interface{} {
+		return &jsonEmpty{}
+	}, confApiHandler))
+	http.HandleFunc("/api/latest", addApiCall(func() interface{} {
+		return &appSensors{}
+	}, latestApiHandler))
+	panic(http.ListenAndServe(fmt.Sprintf(":%s", config["port"]), nil))
 	// log.Printf("HTTP server started")
 }

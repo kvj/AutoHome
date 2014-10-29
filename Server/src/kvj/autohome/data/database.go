@@ -16,11 +16,7 @@ type DBProvider struct {
 
 type HashMap map[string]string
 
-func OpenDB() (*DBProvider, error) {
-	config := MakeConfig()
-	if nil == config {
-		log.Fatal("Invalid config")
-	}
+func OpenDB(config HashMap) *DBProvider {
 	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
 		config["dbuser"],
 		config["dbpass"],
@@ -29,13 +25,29 @@ func OpenDB() (*DBProvider, error) {
 		config["db"])
 	db, err := sql.Open("postgres", url)
 	if err != nil {
-		log.Printf("DB open error: %v", err)
-		return nil, err
+		log.Fatal("DB open error: %v", err)
 	}
 	provider := &DBProvider{
 		db: db,
 	}
-	return provider, nil
+	return provider
+}
+
+func (self *DBProvider) LatestMeasure(device, _type, index, measure int) (float64, *time.Time, error) {
+	rows, err := self.db.Query("select value, at from measure where device=$1 and type=$2 and sensor=$3 and measure=$4 order by at desc limit 1", device, _type, index, measure)
+	if err != nil {
+		return 0, nil, err
+	}
+	var value float64
+	var time time.Time
+	defer rows.Close()
+	if !rows.Next() {
+		log.Printf("No data found:", device, _type, index, measure)
+		return value, &time, nil // No data
+	}
+	err = rows.Scan(&value, &time)
+	// log.Printf("Data found:", device, _type, index, measure, value, time)
+	return value, &time, err // Data found
 }
 
 func (self *DBProvider) AddMeasure(device int, measure *model.MeasureMessage) error {

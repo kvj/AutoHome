@@ -12,5 +12,6 @@ func main() {
 	if config == nil {
 		return
 	}
-	api.StartServer(config)
+	db := data.OpenDB(config)
+	api.StartServer(config, db)
 }
