@@ -7,6 +7,20 @@ window.Q = (value) ->
   if value then dfd.resolve(value)
   return dfd
 
+parseQuery = (query) ->
+  result = {}
+  toparse = query ? ''
+  if toparse[0] is '?'
+    toparse = toparse[1...]
+  parts = toparse.split('&')
+  for part in parts
+    nv = part.split('=')
+    if nv.length == 2
+      result[nv[0]] = nv[1]
+    else
+      result[part] = yes
+  return result
+
 class Storage
 
   constructor: ->
@@ -34,13 +48,16 @@ class APIController
   STORAGE_KEY: 'api_key'
 
   constructor: (@storage, @base = '') ->
-    @key = @storage.get(@STORAGE_KEY, 'str', '')
+    @key = parseQuery(window.location.search).key ? @storage.get(@STORAGE_KEY, 'str', '')
 
   call: (path, config = {}) ->
-    log 'Api Call', path, config
+    log 'Api Call', path, config, window.location
     p = Q()
     login = =>
       input = window.prompt('Enter Key:')
+      if not input
+        p.reject('Cancelled by user')
+        return
       xhr(input).then( =>
         @key = input
         @storage.set(@STORAGE_KEY, input, 'str')
@@ -49,6 +66,7 @@ class APIController
     if (config.input ? 'json') is 'json'
       dataIn = JSON.stringify(body)
     xhr = (key = @key) =>
+      reqP = Q()
       $.ajax("#{@base}api/#{path}",
         contentType: 'application/json; charser=utf-8'
         data: dataIn
@@ -57,6 +75,7 @@ class APIController
         headers:
           'X-Key': key
         success: (data) ->
+          reqP.resolve(data)
           p.resolve(data)
         error: (err) ->
           log 'Api Error:', err
@@ -65,10 +84,11 @@ class APIController
             return
           if err.status is 403
             p.reject(err.responseText)
+            reqP.reject(err.responseText)
             return
-          p.reject("HTTP error: #{err.status}")
+          reqP.reject("HTTP error: #{err.status}")
       )
-      return p
+      return reqP
     xhr()
     return p
 
@@ -174,6 +194,8 @@ class AppController
       btn.addClass(config.cls)
     if config.text
       $("<span class='text'></text>").appendTo(btn).text(config.text)
+    if config.contents
+      btn.append(config.contents)
     btn.on('click', (e) =>
       config.handler() if config.handler
     )

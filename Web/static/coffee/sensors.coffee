@@ -106,7 +106,39 @@ class SensorFlagDisplay extends SensorDisplay
     return cont
 
   show: (value) ->
-    log 'show', @extra
+    # log 'show', @extra
     @btn.almostHide(value == 1)
 
 registerSensor('sensor_flag', SensorFlagDisplay)
+
+class SensorValueDirectionDisplay extends SensorDisplay
+
+  initialize: ->
+    cont = $('<span></span>')
+    @contents = $('<span class="no-wrap"><i class="fa fa-arrow-down"></i><span class="text">...</span></span>')
+    @btn = @app.makeButton(
+      target: cont
+      contents: @contents
+    )
+    @app.addDataListener(@config, (data) =>
+      @value = data.value
+    )
+    @app.addDataListener(
+      device: @config.device
+      type: @config.type
+      index: @config.index
+      measure: @extra.dir
+    , (data) =>
+      @show(data.value, @value)
+    )
+    return cont
+
+  show: (dir, value) ->
+    log 'Wind:', dir, value
+    @contents.find('.text').text("#{value}")
+    @contents.find('i').css(
+      'transform': "rotate(#{dir}deg)"
+      '-webkit-transform': "rotate(#{dir}deg)"
+    )
+
+registerSensor('direction_value', SensorValueDirectionDisplay)
