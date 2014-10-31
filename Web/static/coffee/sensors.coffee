@@ -166,7 +166,7 @@ class SensorValueDirectionDisplay extends SensorDisplay
     return cont
 
   show: (dir, value) ->
-    log 'Wind:', dir, value
+    # log 'Wind:', dir, value
     @contents.find('.text').text("#{value}")
     @contents.find('i').css(
       'transform': "rotate(#{dir}deg)"

@@ -34,6 +34,7 @@ body {
     text-align: center;
     vertical-align: middle;
     line-height: 1em;
+    z-index: 2;
     .fa {
         font-size: 2em;
         vertical-align: middle;
@@ -192,4 +193,23 @@ body {
 .sensor_dt_week, .sensor_dt_month {
     .flex(1);
     padding: 3px;
+    vertical-align: middle;
 }
+
+.main-messages {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    width: 200px;
+}
+
+.one-message {
+    margin: 5px;
+    padding: 10px;
+    z-index: 100;
+    font-size: 1.2em;
+    background-color: #ffc0cb;
+    border: 3px solid #cfa0ab;
+    color: #000000;
+}
+

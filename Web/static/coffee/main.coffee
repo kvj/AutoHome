@@ -126,7 +126,7 @@ class AppController
   loadData: ->
     p = Q()
     @api.call('config').then((config) =>
-      log 'Config loaded:', config
+      # log 'Config loaded:', config
       @makeUI(config)
     , @onError)
     return p
@@ -251,7 +251,17 @@ class AppController
     return wrap
 
   onError: (message) ->
-    alert(message)
+    @showError(message)
+
+  showError: (message) ->
+    div = $("""
+    <div class="one-message"></div>
+    """)
+    div.text(message)
+    $('#main-messages').append(div)
+    setTimeout( =>
+      div.remove()
+    , 7000)
 
   pollData: () ->
     for sensor in @sensors
@@ -271,9 +281,7 @@ class AppController
       log 'Data:', data
       for sensor in data.sensors
         @emitDataEvent(sensor)
-    , (err) =>
-      log 'Error:', err
-    )
+    , @onError)
 
 $(document).ready ->
   log 'App started'
