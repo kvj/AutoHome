@@ -24,9 +24,10 @@ parseQuery = (query) ->
 class Storage
 
   constructor: ->
+    @query = parseQuery(window.location.search)
 
   get: (name, type, def) ->
-    value = localStorage[name] ? def
+    value = @query[name] ? localStorage[name] ? def
     switch (type ? 'str')
       when 'str' then return value
       when 'int'
@@ -48,7 +49,7 @@ class APIController
   STORAGE_KEY: 'api_key'
 
   constructor: (@storage, @base = '') ->
-    @key = parseQuery(window.location.search).key ? @storage.get(@STORAGE_KEY, 'str', '')
+    @key = @storage.get(@STORAGE_KEY, 'str', '')
 
   call: (path, config = {}) ->
     log 'Api Call', path, config, window.location
@@ -158,7 +159,7 @@ class AppController
       icon: 'adjust'
       target: menuTarget
       handler: =>
-        @dark = !@dark
+        @dark = not @dark
         @storage.set(@KEY_UI_DARK, @dark, 'bool')
         @toggleDark()
     )
@@ -216,7 +217,17 @@ class AppController
   makeRoom: (layout) ->
     # log 'Render room', layout
     wrap = $('<div></div>').addClass('room-wrap')
-    div = $('<div></div>').addClass('room')
+    div = $("""
+    <div class="room">
+      <div class="room-side">
+        <div class="room-top"></div>
+      </div>
+      <div class="room-side">
+        <div class="room-bottom"></div>
+      </div>
+    </div>""")
+    itemsTop = div.find('.room-top')
+    itemsBottom = div.find('.room-bottom')
     wrap.append(div)
     wrap.css(
       left: "#{layout.position[0]}%"
@@ -232,7 +243,10 @@ class AppController
       obj = new cls(@, sensor)
       html = obj.initialize(div)
       if html
-        div.append(html)
+        if sensor.revert
+          itemsBottom.append(html)
+        else
+          itemsTop.append(html)
       @sensors.push(obj)
     return wrap
 

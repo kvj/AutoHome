@@ -43,6 +43,38 @@ class DateSensorDisplay extends SensorDisplay
 
 registerSensor('date', DateSensorDisplay)
 
+class DateTimeSensorDisplay extends SensorDisplay
+
+  initialize: ->
+    cont = $('<span></span>')
+    @contents = $("""
+    <div class="sensor_dt_root">
+      <div class="sensor_dt_time"></div>
+      <div class="sensor_dt_date">
+        <div class="sensor_dt_day"></div>
+        <div class="sensor_dt_week_month">
+          <div class="sensor_dt_week"></div>
+          <div class="sensor_dt_month"></div>
+        </div>
+      </div>
+    </div>""")
+    @btn = @app.makeButton(
+      target: cont
+      cls: 'no-height'
+      contents: @contents
+    )
+    return cont
+
+  refresh: ->
+    format = ''
+    dt = new Date()
+    @contents.find('.sensor_dt_time').text(dt.format('HH:mm'))
+    @contents.find('.sensor_dt_day').text(dt.format('d'))
+    @contents.find('.sensor_dt_week').text(dt.format('dddd'))
+    @contents.find('.sensor_dt_month').text(dt.format('MMMM'))
+
+registerSensor('date_time', DateTimeSensorDisplay)
+
 class WeatherIconDisplay extends SensorDisplay
 
   initialize: ->

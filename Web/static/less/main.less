@@ -50,6 +50,10 @@ body {
     width: @round-button-size;
 }
 
+.no-height {
+    height: auto;
+}
+
 .btn-dark {
 }
 
@@ -127,4 +131,65 @@ body {
     border-radius: 6px;
     box-shadow: 0 0 5px @neutral-color;
     margin: 5px;
+    .flex_horizontal();
+}
+
+.room-side {
+    .flex(1);
+    position: relative;
+}
+
+.room-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: auto;
+    max-height: 100%;
+}
+
+.room-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    max-height: 100%;
+    text-align: right;
+}
+
+.sensor_dt_root {
+    display: inline-block;
+    font-weight: bold;
+    font-family: monospace;
+}
+
+.sensor_dt_time {
+    text-align: center;
+    font-size: 4em;
+    line-height: 1em;
+    padding: 3px;
+}
+
+.sensor_dt_date {
+    .flex_horizontal();
+}
+
+.sensor_dt_day {
+    .flex(0);
+    ext-align: center;
+    font-size: 4em;
+    line-height: 1em;
+}
+
+.sensor_dt_week_month {
+    .flex(1);
+    .flex_vertical();
+    font-size: 1.5em;
+    text-align: left;
+}
+
+.sensor_dt_week, .sensor_dt_month {
+    .flex(1);
+    padding: 3px;
 }
