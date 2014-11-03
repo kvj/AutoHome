@@ -49,12 +49,12 @@ class DateTimeSensorDisplay extends SensorDisplay
     cont = $('<span></span>')
     @contents = $("""
     <div class="sensor_dt_root">
-      <div class="sensor_dt_time"></div>
+      <div class="sensor_dt_time text-large"></div>
       <div class="sensor_dt_date">
-        <div class="sensor_dt_day"></div>
+        <div class="sensor_dt_day text-large"></div>
         <div class="sensor_dt_week_month">
-          <div class="sensor_dt_week"></div>
-          <div class="sensor_dt_month"></div>
+          <div class="sensor_dt_week text-small"></div>
+          <div class="sensor_dt_month text-small"></div>
         </div>
       </div>
     </div>""")

@@ -151,6 +151,8 @@ class AppController
         item.handler(data)
 
   makeUI: (config) ->
+    size = $(window)
+    @showError "Size: #{size.width()}x#{size.height()}"
     roomTarget = $('#main-surface')
     menuTarget = $('#main-menu')
     for item in config.layout ? []

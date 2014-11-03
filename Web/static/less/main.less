@@ -1,7 +1,7 @@
 @import "_functions.less";
 
 @neutral-color: #909090;
-@round-button-size: 2.8em;
+@round-button-size: 75px;
 
 html {
     padding: 0;
@@ -15,7 +15,6 @@ body {
     margin: 0;
     width: 100%;
     height: 100%;
-    font-size: 1em;
     overflow: hidden;
     display: block;
     position: absolute;
@@ -27,28 +26,109 @@ body {
     height: @round-button-size;
     border-radius: @round-button-size / 2;
     border: 2px solid @neutral-color;
-    // box-shadow: 2px 2px 3px @neutral-color;
     min-width: @round-button-size;
+    font-size: @round-button-size * 0.75;
+    // box-shadow: 2px 2px 3px @neutral-color;
     margin: 3px;
-    padding: 2px;
+    padding: 4px;
     text-align: center;
     vertical-align: middle;
-    line-height: 1em;
     z-index: 2;
     .fa {
-        font-size: 2em;
         vertical-align: middle;
     }
     .text {
-        font-size: 1.5em;
         font-weight: bold;
         font-family: monospace;
         vertical-align: middle;
     }
+    .text-large {
+        text-align: center;
+        font-weight: bold;
+        font-family: monospace;
+        font-size: @round-button-size * 1.25;
+        padding: @round-button-size * 0.25;
+        vertical-align: middle;
+    }
+    .text-small {
+        font-size: @round-button-size * 0.5;
+        font-family: monospace;
+    }
+}
+
+@media (max-width: 1000px), (max-height: 1000px) {
+    @round-button-size: 70px;
+    .round-btn {
+        height: @round-button-size;
+        border-radius: @round-button-size / 2;
+        border: 2px solid @neutral-color;
+        min-width: @round-button-size;
+        font-size: @round-button-size * 0.75;
+        .text-large {
+            font-size: @round-button-size;
+            padding: @round-button-size * 0.1;
+        }
+        .text-small {
+            font-size: @round-button-size * 0.5;
+        }
+    }
+}
+
+@media (max-width: 800px), (max-height: 800px) {
+    @round-button-size: 60px;
+    .round-btn {
+        height: @round-button-size;
+        border-radius: @round-button-size / 2;
+        border: 2px solid @neutral-color;
+        min-width: @round-button-size;
+        font-size: @round-button-size * 0.75;
+        .text-large {
+            font-size: @round-button-size * 1;
+            padding: @round-button-size * 0.1;
+        }
+        .text-small {
+            font-size: @round-button-size * 0.5;
+        }
+    }
+}
+
+@media (max-width: 600px), (max-height: 600px) {
+    @round-button-size: 40px;
+    .round-btn {
+        height: @round-button-size;
+        border-radius: @round-button-size / 2;
+        border: 2px solid @neutral-color;
+        min-width: @round-button-size;
+        font-size: @round-button-size * 0.75;
+        .text-large {
+            font-size: @round-button-size;
+            padding: @round-button-size * 0.1;
+        }
+        .text-small {
+            font-size: @round-button-size * 0.5;
+        }
+    }
+}
+
+@media (max-width: 500px), (max-height: 500px) {
+    @round-button-size: 25px;
+    .round-btn {
+        height: @round-button-size;
+        border-radius: @round-button-size / 2;
+        border: 2px solid @neutral-color;
+        min-width: @round-button-size;
+        font-size: @round-button-size * 0.75;
+        .text-large {
+            font-size: @round-button-size;
+            padding: @round-button-size * 0.1;
+        }
+        .text-small {
+            font-size: @round-button-size * 0.5;
+        }
+    }
 }
 
 .really-round {
-    width: @round-button-size;
 }
 
 .no-height {
@@ -83,9 +163,9 @@ body {
 
 .main-menu {
     padding: 5px;
-    height: 5em;
+    height: 2 * @round-button-size;
     text-align: right;
-    line-height: 5em;
+    line-height: 2 * @round-button-size;
     .flex(0);
 }
 
@@ -113,10 +193,10 @@ body {
     }
 
     .main-menu {
-        width: 5em;
+        width: 2 * @round-button-size;
         height: auto;
         text-align: center;
-        line-height: 3em;
+        line-height: @round-button-size;
     }
 }
 
@@ -132,7 +212,7 @@ body {
     border-radius: 6px;
     box-shadow: 0 0 5px @neutral-color;
     margin: 5px;
-    .flex_horizontal();
+    .flex_vertical();
 }
 
 .room-side {
@@ -166,10 +246,6 @@ body {
 }
 
 .sensor_dt_time {
-    text-align: center;
-    font-size: 4em;
-    line-height: 1em;
-    padding: 3px;
 }
 
 .sensor_dt_date {
@@ -178,22 +254,16 @@ body {
 
 .sensor_dt_day {
     .flex(0);
-    ext-align: center;
-    font-size: 4em;
-    line-height: 1em;
 }
 
 .sensor_dt_week_month {
     .flex(1);
     .flex_vertical();
-    font-size: 1.5em;
     text-align: left;
 }
 
 .sensor_dt_week, .sensor_dt_month {
     .flex(1);
-    padding: 3px;
-    vertical-align: middle;
 }
 
 .main-messages {
@@ -207,7 +277,7 @@ body {
     margin: 5px;
     padding: 10px;
     z-index: 100;
-    font-size: 1.2em;
+    font-size: 25px;
     background-color: #ffc0cb;
     border: 3px solid #cfa0ab;
     color: #000000;
