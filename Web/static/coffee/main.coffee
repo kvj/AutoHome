@@ -150,6 +150,18 @@ class AppController
       if c.device is data.device and c.index is data.index and c.type is data.type and c.measure is data.measure
         item.handler(data)
 
+  makeNetworkControls: (menuTarget) ->
+    networkBtn = @makeButton(
+      icon: 'circle-o-notch'
+      target: menuTarget
+      handler: =>
+    )
+    $(document).ajaxStart(=>
+      networkBtn.$('i').addClass('fa-spin')
+    ).ajaxStop(=>
+      networkBtn.$('i').removeClass('fa-spin')
+    )
+
   makeUI: (config) ->
     size = $(window)
     @showError "Size: #{size.width()}x#{size.height()}"
@@ -165,6 +177,7 @@ class AppController
         @storage.set(@KEY_UI_DARK, @dark, 'bool')
         @toggleDark()
     )
+    @makeNetworkControls(menuTarget)
     @toggleDark()
     @pollData()
     setInterval(() =>
@@ -214,6 +227,9 @@ class AppController
           btn.removeClass('almost-hidden')
         else
           btn.addClass('almost-hidden')
+      '$': (arg) ->
+        if arg then return btn.find(arg)
+        return btn
     }
 
   makeRoom: (layout) ->

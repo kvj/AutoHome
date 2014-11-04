@@ -23,12 +23,7 @@ body {
 .round-btn {
     background-image: none;
     background-color: #a0a0a0;
-    height: @round-button-size;
-    border-radius: @round-button-size / 2;
     border: 2px solid @neutral-color;
-    min-width: @round-button-size;
-    font-size: @round-button-size * 0.75;
-    // box-shadow: 2px 2px 3px @neutral-color;
     margin: 3px;
     padding: 4px;
     text-align: center;
@@ -46,86 +41,45 @@ body {
         text-align: center;
         font-weight: bold;
         font-family: monospace;
-        font-size: @round-button-size * 1.25;
-        padding: @round-button-size * 0.25;
         vertical-align: middle;
     }
     .text-small {
-        font-size: @round-button-size * 0.5;
         font-family: monospace;
     }
 }
 
-@media (max-width: 1000px), (max-height: 1000px) {
-    @round-button-size: 70px;
+.sizes (@size) {
     .round-btn {
-        height: @round-button-size;
-        border-radius: @round-button-size / 2;
-        border: 2px solid @neutral-color;
-        min-width: @round-button-size;
-        font-size: @round-button-size * 0.75;
+        height: @size;
+        border-radius: @size / 2;
+        min-width: @size;
+        font-size: @size * 0.75;
         .text-large {
-            font-size: @round-button-size;
-            padding: @round-button-size * 0.1;
+            font-size: @size;
+            padding: @size * 0.1;
         }
         .text-small {
-            font-size: @round-button-size * 0.5;
+            font-size: @size * 0.5;
         }
     }
+}
+
+.sizes(75px);
+
+@media (max-width: 1000px), (max-height: 1000px) {
+    .sizes(70px);
 }
 
 @media (max-width: 800px), (max-height: 800px) {
-    @round-button-size: 60px;
-    .round-btn {
-        height: @round-button-size;
-        border-radius: @round-button-size / 2;
-        border: 2px solid @neutral-color;
-        min-width: @round-button-size;
-        font-size: @round-button-size * 0.75;
-        .text-large {
-            font-size: @round-button-size * 1;
-            padding: @round-button-size * 0.1;
-        }
-        .text-small {
-            font-size: @round-button-size * 0.5;
-        }
-    }
+    .sizes(60px);
 }
 
 @media (max-width: 600px), (max-height: 600px) {
-    @round-button-size: 40px;
-    .round-btn {
-        height: @round-button-size;
-        border-radius: @round-button-size / 2;
-        border: 2px solid @neutral-color;
-        min-width: @round-button-size;
-        font-size: @round-button-size * 0.75;
-        .text-large {
-            font-size: @round-button-size;
-            padding: @round-button-size * 0.1;
-        }
-        .text-small {
-            font-size: @round-button-size * 0.5;
-        }
-    }
+    .sizes(40px);
 }
 
 @media (max-width: 500px), (max-height: 500px) {
-    @round-button-size: 25px;
-    .round-btn {
-        height: @round-button-size;
-        border-radius: @round-button-size / 2;
-        border: 2px solid @neutral-color;
-        min-width: @round-button-size;
-        font-size: @round-button-size * 0.75;
-        .text-large {
-            font-size: @round-button-size;
-            padding: @round-button-size * 0.1;
-        }
-        .text-small {
-            font-size: @round-button-size * 0.5;
-        }
-    }
+    .sizes(25px);
 }
 
 .really-round {
@@ -162,11 +116,9 @@ body {
 }
 
 .main-menu {
-    padding: 5px;
-    height: 2 * @round-button-size;
-    text-align: right;
-    line-height: 2 * @round-button-size;
     .flex(0);
+    padding: 10px;
+    text-align: right;
 }
 
 .main-area {
@@ -193,10 +145,7 @@ body {
     }
 
     .main-menu {
-        width: 2 * @round-button-size;
-        height: auto;
         text-align: center;
-        line-height: @round-button-size;
     }
 }
 
