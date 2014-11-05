@@ -155,12 +155,43 @@ class AppController
       icon: 'circle-o-notch'
       target: menuTarget
       handler: =>
+        networkChangeHandler()
     )
     $(document).ajaxStart(=>
       networkBtn.$('i').addClass('fa-spin')
     ).ajaxStop(=>
       networkBtn.$('i').removeClass('fa-spin')
     )
+    if document.webkitHidden
+      eventName = 'webkitvisibilitychange'
+      propName = 'webkitHidden'
+    else
+      eventName = 'visibilitychange'
+      propName = 'hidden'
+    refreshID = null
+    networkChangeHandler = =>
+      # log 'networkChangeHandler', navigator.onLine, document[propName]
+      if refreshID
+        clearTimeout(refreshID)
+        refreshID = null
+      if navigator.onLine and document[propName] is no
+        networkBtn.almostHide(yes)
+        @pollData().always(=>
+          refreshID = setTimeout(=>
+            networkChangeHandler()
+          , @POLL_INTERVAL_SEC * 1000)
+        )
+      else
+        networkBtn.almostHide(no)
+    $(window).on('online', =>
+      networkChangeHandler()
+    ).on('offline', =>
+      networkChangeHandler()
+    )
+    $(document).on(eventName, =>
+      networkChangeHandler()
+    )
+    networkChangeHandler()
 
   makeUI: (config) ->
     size = $(window)
@@ -179,10 +210,6 @@ class AppController
     )
     @makeNetworkControls(menuTarget)
     @toggleDark()
-    @pollData()
-    setInterval(() =>
-      @pollData()
-    , @POLL_INTERVAL_SEC * 1000)
 
   parseExtra: (extra) ->
     result = {}
@@ -293,10 +320,10 @@ class AppController
         index: item.config.index
         measure: item.config.measure
       )
-    @api.call('latest',
+    return @api.call('latest',
       body: obj
     ).then((data) =>
-      log 'Data:', data
+      # log 'Data:', data
       for sensor in data.sensors
         @emitDataEvent(sensor)
     , @onError)
