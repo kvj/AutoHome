@@ -1,3 +1,27 @@
+normalize = (a) ->
+  n = a.length-1
+  if n < 7 then return a
+  result = []
+  for val, i in a
+    v = val
+    switch i
+      when 0
+        v = (39*a[0] + 8*a[1] - 4*(a[2]+a[3]-a[4]) + a[5] - 2*a[6]) / 42
+      when 1
+        v = (8*a[0] + 19*a[1] + 16*a[2] + 6*a[3] - 4*a[4] - 7*a[5] + 4*a[6]) / 42
+      when 2
+        v = (-4*a[0] + 16*a[1] + 19*a[2] + 12*a[3] + 2*a[4] - 4*a[5] + 1*a[6]) / 42
+      when n-2
+        v = (-4*a[n] + 16*a[n-1] + 19*a[n-2] + 12*a[n-3] + 2*a[n-4] - 4*a[n-5] + 1*a[n-6]) / 42
+      when n-1
+        v = (8*a[n] + 19*a[n-1] + 16*a[n-2] + 6*a[n-3] - 4*a[n-4] - 7*a[n-5] + 4*a[n-6]) / 42
+      when n
+        v = (39*a[n] + 8*a[n-1] - 4*a[n-2] - 4*a[n-3] + a[n-4] + 4*a[n-5] - 2*a[n-6]) / 42
+      else
+        v = (7*a[i] + 6*a[i+1] + 6*a[i-1] + 3*a[i+2] + 3*a[i-2] - 2*a[i+3] - 2*a[i-3]) / 21
+    result.push(v)
+  return result
+
 class ValueSensorDisplay extends SensorDisplay
 
   initialize: ->
@@ -174,3 +198,46 @@ class SensorValueDirectionDisplay extends SensorDisplay
     )
 
 registerSensor('direction_value', SensorValueDirectionDisplay)
+
+class InlineGraphDisplay extends SensorDisplay
+
+  COLORS: ['#dc322f', '#268bd2', '#859900']
+
+  initialize: ->
+
+  refresh: ->
+    to = new Date().getTime()
+    from = to - 1 * 24 * 60 * 60 * 1000 # 3 days
+    @app.fetchData(@config.data, from, to).then((data) =>
+      series = []
+      yaxes = []
+      for data, i in data.series
+        arr = []
+        min = 9999
+        max = 0
+        raw = []
+        for item in data
+          arr.push([item.ts, item.value])
+          raw.push(item.value)
+        norm = raw
+        normTimes = Math.ceil(raw.length / 50)
+        for j in [0...normTimes]
+          norm = normalize(norm)
+        # log 'Normalized:', normTimes
+        for val, j in norm
+          if val < min then min = val
+          if val > max then max = val
+          arr[j][1] = val
+        series.push(
+          data: arr
+          yaxis: i+1
+        )
+        gap = (max - min) / 2
+        yaxes.push({
+          min: min-gap
+          max: max+gap
+        })
+      @room.plot(series, @COLORS, yaxes)
+    )
+
+registerSensor('inline_graph', InlineGraphDisplay)

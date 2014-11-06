@@ -83,11 +83,11 @@ class APIController
           if err.status is 401
             login()
             return
+          errorStr = "HTTP error: #{err.status}"
           if err.status is 403
-            p.reject(err.responseText)
-            reqP.reject(err.responseText)
-            return
-          reqP.reject("HTTP error: #{err.status}")
+            errorStr = err.responseText
+          p.reject(err.responseText)
+          reqP.reject(err.responseText)
       )
       return reqP
     xhr()
@@ -95,13 +95,14 @@ class APIController
 
 class SensorDisplay
 
-  constructor: (@app, @config) ->
+  constructor: (@app, @config, @room) ->
     @extra = @app.parseExtra(@config.extra)
 
   initialize: ->
     return undefined # Render button etc here
 
   refresh: -> # Override
+  redraw: -> # Override
 
 
 window.SensorDisplay = SensorDisplay
@@ -114,6 +115,7 @@ window.registerSensor = (type, cls) ->
 class AppController
 
   KEY_UI_DARK: 'ui_dark'
+  KEY_NET_FORCE: 'net_force'
   POLL_INTERVAL_SEC: 20
 
   constructor: ->
@@ -122,6 +124,7 @@ class AppController
     @dark = @storage.get(@KEY_UI_DARK, 'bool', no)
     @sensors = []
     @listeners = []
+    @series = []
 
   loadData: ->
     p = Q()
@@ -140,6 +143,12 @@ class AppController
 
   addDataListener: (config, handler) ->
     @listeners.push(
+      config: config
+      handler: handler
+    )
+
+  addSerieListener: (config, handler) ->
+    @series.push(
       config: config
       handler: handler
     )
@@ -169,12 +178,13 @@ class AppController
       eventName = 'visibilitychange'
       propName = 'hidden'
     refreshID = null
+    forceRefresh = @storage.get(@KEY_NET_FORCE, 'bool', no)
     networkChangeHandler = =>
       # log 'networkChangeHandler', navigator.onLine, document[propName]
       if refreshID
         clearTimeout(refreshID)
         refreshID = null
-      if navigator.onLine and document[propName] is no
+      if (navigator.onLine and document[propName] is no) or forceRefresh
         networkBtn.almostHide(yes)
         @pollData().always(=>
           refreshID = setTimeout(=>
@@ -270,6 +280,7 @@ class AppController
       <div class="room-side">
         <div class="room-bottom"></div>
       </div>
+      <div class="room-canvas"></div>
     </div>""")
     itemsTop = div.find('.room-top')
     itemsBottom = div.find('.room-bottom')
@@ -280,12 +291,24 @@ class AppController
       width: "#{layout.position[2]}%"
       height: "#{layout.position[3]}%"
     )
+    roomControl =
+      plot: (data, colors, yaxes) =>
+        log 'plot', data
+        $.plot(div.find('.room-canvas'), data,
+          xaxes: [
+            mode: 'time'
+          ]
+          yaxes: yaxes ? {}
+          grid:
+            show: no
+          colors: colors
+        )
     for sensor in layout.sensors ? []
       cls = sensorTypes[sensor.plugin]
       if not cls
         log 'Sensor type not supported', sensor
         continue
-      obj = new cls(@, sensor)
+      obj = new cls(@, sensor, roomControl)
       html = obj.initialize(div)
       if html
         if sensor.revert
@@ -295,7 +318,7 @@ class AppController
       @sensors.push(obj)
     return wrap
 
-  onError: (message) ->
+  onError: (message) =>
     @showError(message)
 
   showError: (message) ->
@@ -307,6 +330,24 @@ class AppController
     setTimeout( =>
       div.remove()
     , 7000)
+
+  fetchData: (sensors, from, to) ->
+    obj =
+      series: []
+    for item in sensors
+      obj.series.push(
+        device: item.device
+        type: item.type
+        index: item.index
+        measure: item.measure
+        from: from
+        to: to
+      )
+    return @api.call('data',
+      body: obj
+    ).then((data) =>
+      return data
+    , @onError)
 
   pollData: () ->
     for sensor in @sensors

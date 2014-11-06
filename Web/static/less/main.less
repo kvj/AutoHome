@@ -157,11 +157,22 @@ body {
 
 .room {
     .flex(1);
+    .flex_vertical();
     border: 1px solid @neutral-color;
     border-radius: 6px;
     box-shadow: 0 0 5px @neutral-color;
     margin: 5px;
-    .flex_vertical();
+    position: relative;
+}
+
+@canvas-padding: 5px;
+
+.room-canvas {
+    position: absolute;
+    top: @canvas-padding;
+    left: @canvas-padding;
+    right: @canvas-padding;
+    bottom: @canvas-padding;
 }
 
 .room-side {
