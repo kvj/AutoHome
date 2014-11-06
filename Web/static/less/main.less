@@ -243,3 +243,43 @@ body {
     color: #000000;
 }
 
+@details-padding: 10px;
+
+.main-details {
+    position: absolute;
+    top: @details-padding;
+    left: @details-padding;
+    bottom: @details-padding;
+    right: @details-padding;
+    .flex_vertical();
+    .flex_align(center);
+    .flex_cross_align(center);
+    display: none;
+}
+
+.detail-wrapper {
+    .flex(1);
+    border: 1px solid @neutral-color;
+    border-radius: 6px;
+    box-shadow: 0 0 5px @neutral-color;
+    background-color: rgba(127, 127, 127, 0.7);
+    width: 100%;
+    height: 100%;
+    max-width: 1000px;
+    max-height: 700px;
+    .flex_vertical();
+}
+
+.detail-surface {
+    .flex(1);
+}
+
+.detail-interval {
+    .flex(0);
+    text-align: center;
+}
+
+.detail-navigation {
+    .flex(0);
+    text-align: right;
+}

@@ -21,6 +21,29 @@ parseQuery = (query) ->
       result[part] = yes
   return result
 
+class DetailsDialog
+
+  INTERVALS: [
+    days: 1
+    title: '1D'
+  ,
+    days: 3
+    title: '3D'
+  ,
+    days: 10
+    title: '10D'
+  ,
+    days: 28
+    title: '4W'
+  ,
+    days: 84
+    title: '12W'
+  ]
+
+  constructor: (@config) ->
+    @now = new Date().getTime()
+    @from = @now
+
 class Storage
 
   constructor: ->
@@ -52,7 +75,7 @@ class APIController
     @key = @storage.get(@STORAGE_KEY, 'str', '')
 
   call: (path, config = {}) ->
-    log 'Api Call', path, config, window.location
+    # log 'Api Call', path, config, window.location
     p = Q()
     login = =>
       input = window.prompt('Enter Key:')
