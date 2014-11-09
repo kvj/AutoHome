@@ -29,6 +29,8 @@ class ValueSensorDisplay extends SensorDisplay
     @btn = @app.makeButton(
       target: cont
       text: '...'
+      handler: =>
+        @room.showDetail(@extra.detail) if @extra.detail
     )
     @app.addDataListener(@config, (data) =>
       @show(data.value)
@@ -241,3 +243,17 @@ class InlineGraphDisplay extends SensorDisplay
     )
 
 registerSensor('inline_graph', InlineGraphDisplay)
+
+class DetailGraphDisplay extends SensorDisplay
+
+  initialize: ->
+    control = new DetailsDialog(
+      app: @app
+      forecast: @extra.forecast
+      default: @extra.default
+    )
+    @room.addDetail(@extra.name, control)
+
+  show: (value) ->
+
+registerSensor('graph', DetailGraphDisplay)

@@ -44,6 +44,29 @@ class DetailsDialog
     @now = new Date().getTime()
     @from = @now
 
+  showUI: () ->
+    div = $('#main-details')
+    sdiv = div.find('.detail-surface').empty()
+    idiv = div.find('.detail-interval').empty()
+    ndiv = div.find('.detail-navigation').empty()
+    makeIntervalBtn = (btn) =>
+      b = @config.app.makeButton(
+        text: btn.title
+        target: idiv
+        handler: =>
+          log 'Change interval:', btn.days
+      )
+    for item in @INTERVALS
+      makeIntervalBtn(item)
+    @config.app.makeButton(
+      text: 'Close'
+      target: ndiv
+      handler: =>
+        div.hide()
+    )
+
+    div.show()
+
 class Storage
 
   constructor: ->
@@ -297,13 +320,13 @@ class AppController
     wrap = $('<div></div>').addClass('room-wrap')
     div = $("""
     <div class="room">
+      <div class="room-canvas"></div>
       <div class="room-side">
         <div class="room-top"></div>
       </div>
       <div class="room-side">
         <div class="room-bottom"></div>
       </div>
-      <div class="room-canvas"></div>
     </div>""")
     itemsTop = div.find('.room-top')
     itemsBottom = div.find('.room-bottom')
@@ -314,6 +337,7 @@ class AppController
       width: "#{layout.position[2]}%"
       height: "#{layout.position[3]}%"
     )
+    details = {}
     roomControl =
       plot: (data, colors, yaxes) =>
         log 'plot', data
@@ -326,6 +350,12 @@ class AppController
             show: no
           colors: colors
         )
+      addDetail: (name, detail) =>
+        details[name] = detail
+      showDetail: (name) =>
+        detail = details[name]
+        detail.showUI() if detail
+
     for sensor in layout.sensors ? []
       cls = sensorTypes[sensor.plugin]
       if not cls
