@@ -247,10 +247,23 @@ registerSensor('inline_graph', InlineGraphDisplay)
 class DetailGraphDisplay extends SensorDisplay
 
   initialize: ->
+    renderOne = (idx) =>
+      from = control.from.getTime()
+      to = control.to.getTime()
+      @app.fetchData(@config.data[idx].sensors, from, to).then((data) =>
+      )
     control = new DetailsDialog(
       app: @app
       forecast: @extra.forecast
       default: @extra.default
+      onCreate: (div) =>
+        control.divs = []
+        for item in @config.data
+          control.divs.push($("<div class='surface-graph'></div>").appendTo(div))
+      onRender: =>
+        for item, idx in @config.data
+          renderOne(idx)
+
     )
     @room.addDetail(@extra.name, control)
 

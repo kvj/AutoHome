@@ -42,7 +42,6 @@ class DetailsDialog
 
   constructor: (@config) ->
     @now = new Date().getTime()
-    @from = @now
 
   showUI: () ->
     div = $('#main-details')
@@ -58,14 +57,52 @@ class DetailsDialog
       )
     for item in @INTERVALS
       makeIntervalBtn(item)
+    @days = @config.default ? 1
     @config.app.makeButton(
-      text: 'Close'
+      icon: 'chevron-left'
+      target: ndiv
+      handler: =>
+        @moveDate(-1)
+    )
+    @config.app.makeButton(
+      icon: 'circle-o'
+      target: ndiv
+      handler: =>
+        @moveDate(0)
+    )
+    @config.app.makeButton(
+      icon: 'chevron-right'
+      target: ndiv
+      handler: =>
+        @moveDate(1)
+    )
+    @config.app.makeButton(
+      icon: 'close'
       target: ndiv
       handler: =>
         div.hide()
     )
-
     div.show()
+    @config.onCreate(sdiv) if @config.onCreate
+    @moveDate(0)
+
+  moveDate: (dir = 0) ->
+    switch dir
+      when 0
+        @from = new Date(@now)
+        @to = new Date(@now)
+        if @config.forecast
+          @to.setDate(@to.getDate()+@days)
+        else
+          @from.setDate(@from.getDate()-@days)
+      when 1
+        @to.setDate(@to.getDate()+@days)
+        @from.setDate(@from.getDate()+@days)
+      when -1
+        @to.setDate(@to.getDate()-@days)
+        @from.setDate(@from.getDate()-@days)
+    log 'moveDate', @from, @to
+    @config.onRender() if @config.onRender
 
 class Storage
 

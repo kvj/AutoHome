@@ -52,6 +52,7 @@ body {
     .round-btn {
         height: @size;
         border-radius: @size / 2;
+        line-height: @size / 2;
         min-width: @size;
         font-size: @size * 0.75;
         .text-large {
@@ -60,6 +61,9 @@ body {
         }
         .text-small {
             font-size: @size * 0.5;
+        }
+        .fa {
+            line-height: @size / 2;
         }
     }
 }
@@ -271,6 +275,11 @@ body {
 }
 
 .detail-surface {
+    .flex(1);
+    .flex_vertical();
+}
+
+.surface-graph {
     .flex(1);
 }
 
