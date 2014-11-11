@@ -59,7 +59,7 @@ func (self *arduinoTalker) Start() {
 	}
 }
 
-func (self *arduinoTalker) AddMessageProvider(index int, ch model.MMChannel) {
+func (self *arduinoTalker) AddMessageProvider(index int, ch model.MMChannel, forecast model.MMsChannel) {
 	go func() {
 		for message := range ch {
 			// log.Printf("Message came: %v %v", index, message)
@@ -67,6 +67,26 @@ func (self *arduinoTalker) AddMessageProvider(index int, ch model.MMChannel) {
 			err := self.db.AddMeasure(index, message)
 			if err != nil {
 				log.Printf("Error: %v", err)
+			}
+		}
+	}()
+	go func() {
+		for messages := range forecast {
+			// log.Printf("Message came: %v %v", index, message)
+			if len(messages) == 0 {
+				continue
+			}
+			log.Printf("Forecast: %v %v", index, len(messages))
+			message := messages[0]
+			err := self.db.DropForecast(index, message)
+			if err != nil {
+				log.Printf("Forecast drop failed: %v", err)
+				continue
+			}
+			err = self.db.AddMeasures(data.TypeForecast, index, messages)
+			if err != nil {
+				log.Printf("Forecast add failed: %v", err)
+				continue
 			}
 		}
 	}()

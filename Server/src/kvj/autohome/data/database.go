@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+const (
+	TypeMeasure  = iota
+	TypeForecast = iota
+)
+
 type DBProvider struct {
 	db *sql.DB
 }
@@ -50,20 +55,47 @@ func (self *DBProvider) LatestMeasure(device, _type, index, measure int) (float6
 	return value, &time, err // Data found
 }
 
-func (self *DBProvider) AddMeasure(device int, measure *model.MeasureMessage) error {
+func (self *DBProvider) DropForecast(device int, measure *model.MeasureMessage) error {
 	tx, err := self.db.Begin()
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec("insert into measure "+
-		"(device, type, sensor, measure, value, at) values "+
-		"($1, $2, $3, $4, $5, $6)",
-		device, measure.Type, measure.Sensor, measure.Measure, measure.Value, time.Now())
+	_, err = tx.Exec("delete from forecast where device=$1 and type=$2 and sensor=$3",
+		device, measure.Type, measure.Sensor)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 	tx.Commit()
+	return nil
+}
+
+func (self *DBProvider) AddMeasure(device int, measure *model.MeasureMessage) error {
+	measure.Time = time.Now()
+	return self.AddMeasures(TypeMeasure, device, []*model.MeasureMessage{measure})
+}
+
+func (self *DBProvider) AddMeasures(table int, device int, measures []*model.MeasureMessage) error {
+	tx, err := self.db.Begin()
+	if err != nil {
+		return err
+	}
+	table_name := "measure"
+	if table == TypeForecast {
+		table_name = "forecast"
+	}
+	for _, measure := range measures {
+		_, err = tx.Exec("insert into "+table_name+" "+
+			"(device, type, sensor, measure, value, at) values "+
+			"($1, $2, $3, $4, $5, $6)",
+			device, measure.Type, measure.Sensor, measure.Measure, measure.Value, measure.Time)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	tx.Commit()
+	// log.Printf("Measures added: %v %s", len(measures), table_name)
 	return nil
 }
 

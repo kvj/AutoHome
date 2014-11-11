@@ -23,6 +23,7 @@ func main() {
 		Device: "/dev/rfcomm1",
 		Index:  1,
 	})
-	talker.AddMessageProvider(10, internet.StartWeatherCrawler(0, "locid:JATY0021"))
+	mm, mms := internet.StartWeatherCrawler(0, "locid:JATY0021")
+	talker.AddMessageProvider(10, mm, mms)
 	talker.Start()
 }

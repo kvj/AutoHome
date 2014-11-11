@@ -18,9 +18,10 @@ const (
 )
 
 type Crawler struct {
-	queue  model.MMChannel
-	index  int
-	ticker *time.Ticker
+	queue    model.MMChannel
+	forecast model.MMsChannel
+	index    int
+	ticker   *time.Ticker
 }
 
 func (self *Crawler) json(url string, obj interface{}) error {
@@ -114,7 +115,7 @@ type WeatherCrawler struct {
 }
 
 type weatherMeasure struct {
-	temp, wind, wspeed, weather, humidity, rain, snow, feels, pressure, probability float64
+	temp, wind, wspeed, weather, humidity, rain, snow, feels, pressure, probability, sky float64
 }
 
 func current2WeatherMeasure(current jsonConditionsResponse) weatherMeasure {
@@ -149,6 +150,18 @@ func hourly2WeatherMeasure(current jsonHourlyForecast) weatherMeasure {
 		probability: str2Float(current.Pop),
 		feels:       str2Float(current.Feelslike.Metric),
 		pressure:    str2Float(current.Mslp.Metric),
+		sky:         str2Float(current.Sky),
+	}
+}
+
+func (self *WeatherCrawler) putMeasureMessageToArray(arr model.MeasureMessages, from int, values []float64) {
+	for idx, value := range values {
+		arr[idx+from] = &model.MeasureMessage{
+			Type:    wundergroundType,
+			Sensor:  self.index,
+			Measure: idx,
+			Value:   value,
+		}
 	}
 }
 
@@ -167,35 +180,11 @@ func (self *WeatherCrawler) poll() {
 	self.now = current
 	// Make measurements
 	// log.Printf("Message prepared:", message)
-	self.queue <- &model.MeasureMessage{
-		Type:    wundergroundType,
-		Sensor:  self.index,
-		Measure: 0,
-		Value:   current.weather,
-	}
-	self.queue <- &model.MeasureMessage{
-		Type:    wundergroundType,
-		Sensor:  self.index,
-		Measure: 1,
-		Value:   current.temp,
-	}
-	self.queue <- &model.MeasureMessage{
-		Type:    wundergroundType,
-		Sensor:  self.index,
-		Measure: 2,
-		Value:   current.feels,
-	}
-	self.queue <- &model.MeasureMessage{
-		Type:    wundergroundType,
-		Sensor:  self.index,
-		Measure: 3,
-		Value:   current.humidity,
-	}
-	self.queue <- &model.MeasureMessage{
-		Type:    wundergroundType,
-		Sensor:  self.index,
-		Measure: 4,
-		Value:   current.pressure,
+	values := []float64{current.weather, current.temp, current.feels, current.humidity, current.pressure, current.wind, current.wspeed, current.rain}
+	messages := make(model.MeasureMessages, len(values))
+	self.putMeasureMessageToArray(messages, 0, values)
+	for _, message := range messages {
+		self.queue <- message
 	}
 
 	var hourly jsonHourly
@@ -217,9 +206,21 @@ func (self *WeatherCrawler) poll() {
 			data:   data,
 		}
 	}
+	const values_size = 11
+	arr := make(model.MeasureMessages, len(self.hourly)*values_size)
+	from := 0
+	for _, item := range self.hourly {
+		item_values := []float64{item.data.weather, item.data.temp, item.data.feels, item.data.humidity, item.data.pressure, item.data.wind, item.data.wspeed, item.data.rain, item.data.snow, item.data.probability, item.data.sky}
+		self.putMeasureMessageToArray(arr, from, item_values)
+		for i := 0; i < values_size; i++ {
+			arr[i+from].Time = item.tstamp
+		}
+		from += values_size
+	}
+	self.forecast <- arr
 }
 
-func StartWeatherCrawler(index int, location string) model.MMChannel {
+func StartWeatherCrawler(index int, location string) (model.MMChannel, model.MMsChannel) {
 	crawler := &WeatherCrawler{
 		Crawler: Crawler{
 			index: index,
@@ -227,6 +228,7 @@ func StartWeatherCrawler(index int, location string) model.MMChannel {
 		location: location,
 	}
 	crawler.queue = make(model.MMChannel)
+	crawler.forecast = make(model.MMsChannel)
 	crawler.ticker = time.NewTicker(15 * time.Minute)
 	go func() {
 		crawler.poll()
@@ -234,5 +236,5 @@ func StartWeatherCrawler(index int, location string) model.MMChannel {
 			crawler.poll()
 		}
 	}()
-	return crawler.queue
+	return crawler.queue, crawler.forecast
 }
