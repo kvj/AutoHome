@@ -43,6 +43,19 @@ class DetailsDialog
   constructor: (@config) ->
     @now = new Date().getTime()
 
+  plot: (div, data, colors, yaxes) ->
+    # log 'plot', data
+    $.plot(div, data,
+      xaxes: [
+        mode: 'time'
+        timezone: 'browser'
+      ]
+      yaxes: yaxes ? {}
+      grid:
+        show: yes
+      colors: colors
+    )
+
   showUI: () ->
     div = $('#main-details')
     sdiv = div.find('.detail-surface').empty()
@@ -54,6 +67,7 @@ class DetailsDialog
         target: idiv
         handler: =>
           log 'Change interval:', btn.days
+          @changeInterval(btn.days)
       )
     for item in @INTERVALS
       makeIntervalBtn(item)
@@ -80,11 +94,23 @@ class DetailsDialog
       icon: 'close'
       target: ndiv
       handler: =>
-        div.hide()
+        @visible = no
+        div.addClass('no-display')
     )
-    div.show()
+    @visible = yes
+    div.removeClass('no-display')
     @config.onCreate(sdiv) if @config.onCreate
     @moveDate(0)
+
+  changeInterval: (days) ->
+    @days = days
+    if @config.forecast
+      @to = new Date(@from.getTime())
+      @to.setDate(@to.getDate()+@days)
+    else
+      @from = new Date(@to.getTime())
+      @from.setDate(@from.getDate()-@days)
+    @config.onRender() if @config.onRender
 
   moveDate: (dir = 0) ->
     switch dir
@@ -169,8 +195,8 @@ class APIController
           errorStr = "HTTP error: #{err.status}"
           if err.status is 403
             errorStr = err.responseText
-          p.reject(err.responseText)
-          reqP.reject(err.responseText)
+          p.reject(errorStr)
+          reqP.reject(errorStr)
       )
       return reqP
     xhr()
@@ -421,9 +447,10 @@ class AppController
       div.remove()
     , 7000)
 
-  fetchData: (sensors, from, to) ->
+  fetchData: (sensors, from, to, forecast = no) ->
     obj =
       series: []
+      forecast: forecast
     for item in sensors
       obj.series.push(
         device: item.device

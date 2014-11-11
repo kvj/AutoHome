@@ -107,6 +107,8 @@ class WeatherIconDisplay extends SensorDisplay
     cont = $('<span></span>')
     @btn = @app.makeButton(
       target: cont
+      handler: =>
+        @room.showDetail(@extra.detail) if @extra.detail
     )
     @app.addDataListener(@config, (data) =>
       @show(data.value)
@@ -201,6 +203,25 @@ class SensorValueDirectionDisplay extends SensorDisplay
 
 registerSensor('direction_value', SensorValueDirectionDisplay)
 
+prepareSeries = (data, doNormalize) ->
+    arr = []
+    min = 9999
+    max = 0
+    raw = []
+    for item in data
+      arr.push([item.ts, item.value])
+      raw.push(item.value)
+    norm = raw
+    normTimes = Math.ceil(raw.length / 50)
+    if doNormalize and normTimes > 0
+      for j in [0...normTimes]
+        norm = normalize(norm)
+    for val, j in norm
+      if val < min then min = val
+      if val > max then max = val
+      arr[j][1] = val
+    return [arr, min, max]
+
 class InlineGraphDisplay extends SensorDisplay
 
   COLORS: ['#dc322f', '#268bd2', '#859900']
@@ -213,23 +234,9 @@ class InlineGraphDisplay extends SensorDisplay
     @app.fetchData(@config.data, from, to).then((data) =>
       series = []
       yaxes = []
+      colors = []
       for data, i in data.series
-        arr = []
-        min = 9999
-        max = 0
-        raw = []
-        for item in data
-          arr.push([item.ts, item.value])
-          raw.push(item.value)
-        norm = raw
-        normTimes = Math.ceil(raw.length / 50)
-        for j in [0...normTimes]
-          norm = normalize(norm)
-        # log 'Normalized:', normTimes
-        for val, j in norm
-          if val < min then min = val
-          if val > max then max = val
-          arr[j][1] = val
+        [arr, min, max] = prepareSeries(data, yes)
         series.push(
           data: arr
           yaxis: i+1
@@ -239,18 +246,61 @@ class InlineGraphDisplay extends SensorDisplay
           min: min-gap
           max: max+gap
         })
-      @room.plot(series, @COLORS, yaxes)
+        colors.push(@COLORS[i % @COLORS.length])
+      @room.plot(series, colors, yaxes)
     )
 
 registerSensor('inline_graph', InlineGraphDisplay)
 
-class DetailGraphDisplay extends SensorDisplay
+COLORS =
+  'yellow':  [0xb5, 0x89, 0x00]
+  'orange':  [0xcb, 0x4b, 0x16]
+  'red':     [0xdc, 0x32, 0x2f]
+  'magenta': [0xd3, 0x36, 0x82]
+  'violet':  [0x6c, 0x71, 0xc4]
+  'blue':    [0x26, 0x8b, 0xd2]
+  'cyan':    [0x2a, 0xa1, 0x98]
+  'green':   [0x85, 0x99, 0x00]
+  'grey':    [0x83, 0x94, 0x96]
 
+class DetailGraphDisplay extends SensorDisplay
+ 
   initialize: ->
     renderOne = (idx) =>
       from = control.from.getTime()
       to = control.to.getTime()
-      @app.fetchData(@config.data[idx].sensors, from, to).then((data) =>
+      @app.fetchData(@config.data[idx].sensors, from, to, @extra.forecast).then((data) =>
+        if not control.visible then return
+        series = []
+        yaxes = []
+        colors = []
+        yaxes.push({
+          min: 0
+          max: 100
+          show: yes
+          position: "right"
+          labelWidth: 30
+        })
+        for data, i in data.series
+          conf = @config.data[idx].sensors[i]
+          [arr, min, max] = prepareSeries(data, yes)
+          series.push(
+            data: arr
+            lines:
+              show: yes
+              fill: conf.fill
+            yaxis: if conf.percent then 1 else yaxes.length+1
+          )
+          gap = (max - min) / 2
+          if not conf.percent
+            yaxes.push({
+              labelWidth: 50
+              min: if min-gap > 0 then min-gap else 0
+              max: max+gap
+            })
+          col = COLORS[conf.color] ? COLORS.yellow
+          colors.push("rgb(#{col[0]}, #{col[1]}, #{col[2]})")
+        control.plot(control.divs[idx], series, colors, yaxes)
       )
     control = new DetailsDialog(
       app: @app

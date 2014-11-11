@@ -65,7 +65,8 @@ type appSensors struct {
 }
 
 type appSeriesRequest struct {
-	Series []appSensor `json:"series"`
+	Series   []appSensor `json:"series"`
+	Forecast bool        `json:"forecast"`
 }
 
 type appSeriesResponse struct {
@@ -108,8 +109,12 @@ func dataApiHandler(body interface{}) (interface{}, string) {
 	response := &appSeriesResponse{
 		Series: make([][]appSensor, len(seriesBody.Series)),
 	}
+	dataType := data.TypeMeasure
+	if seriesBody.Forecast {
+		dataType = data.TypeForecast
+	}
 	for idx, sensor := range seriesBody.Series {
-		values, times, err := dbProvider.DataForPeriod(sensor.Device, sensor.Type, sensor.Index, sensor.Measure, sensor.From, sensor.To)
+		values, times, err := dbProvider.DataForPeriod(dataType, sensor.Device, sensor.Type, sensor.Index, sensor.Measure, sensor.From, sensor.To)
 		if err != nil {
 			log.Printf("Failed to load data: %v", err)
 			return nil, "DB error"

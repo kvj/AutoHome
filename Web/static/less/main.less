@@ -20,6 +20,10 @@ body {
     position: absolute;
 }
 
+.no-display {
+    display: none !important;
+}
+
 .round-btn {
     background-image: none;
     background-color: #a0a0a0;
@@ -258,7 +262,6 @@ body {
     .flex_vertical();
     .flex_align(center);
     .flex_cross_align(center);
-    display: none;
 }
 
 .detail-wrapper {
@@ -266,11 +269,11 @@ body {
     border: 1px solid @neutral-color;
     border-radius: 6px;
     box-shadow: 0 0 5px @neutral-color;
-    background-color: rgba(127, 127, 127, 0.7);
-    width: 100%;
-    height: 100%;
-    max-width: 1000px;
-    max-height: 700px;
+    background-color: rgba(255, 255, 255, 0.8);
+    max-width: 100%;
+    max-height: 100%;
+    width: 1000px;
+    height: 800px;
     .flex_vertical();
 }
 
