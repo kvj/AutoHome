@@ -38,6 +38,29 @@ func OpenDB(config HashMap) *DBProvider {
 	return provider
 }
 
+func (self *DBProvider) DataForPeriod(device, _type, index, measure int, from, to int64) ([]float64, []*time.Time, error) {
+	rows, err := self.db.Query("select value, at from measure where device=$1 and type=$2 and sensor=$3 and measure=$4 and at between $5 and $6 order by at", device, _type, index, measure, time.Unix(from/1000, 0), time.Unix(to/1000, 0))
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	var values []float64
+	var times []*time.Time
+	for rows.Next() {
+		var value float64
+		var time time.Time
+		err = rows.Scan(&value, &time)
+		if err != nil {
+			return nil, nil, err
+		}
+		values = append(values, value)
+		times = append(times, &time)
+	}
+	// log.Printf("Data found:", device, _type, index, measure, value, time)
+	return values, times, nil // OK
+
+}
+
 func (self *DBProvider) LatestMeasure(device, _type, index, measure int) (float64, *time.Time, error) {
 	rows, err := self.db.Query("select value, at from measure where device=$1 and type=$2 and sensor=$3 and measure=$4 order by at desc limit 1", device, _type, index, measure)
 	if err != nil {

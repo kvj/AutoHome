@@ -1,8 +1,11 @@
 @import "_functions.less";
 
 @neutral-color: #909090;
+@round-button-size: 75px;
 
 html {
+    padding: 0;
+    margin: 0;
     width: 100%;
     height: 100%;
 }
@@ -10,34 +13,84 @@ html {
 body {
     padding: 0;
     margin: 0;
-    font-size: 1em;
     width: 100%;
     height: 100%;
+    overflow: hidden;
+    display: block;
+    position: absolute;
 }
 
 .round-btn {
+    background-image: none;
     background-color: #a0a0a0;
-    height: 3em;
-    border-radius: 1.5em;
     border: 2px solid @neutral-color;
-    // box-shadow: 2px 2px 3px @neutral-color;
-    min-width: 3em;
     margin: 3px;
-    padding: 2px;
+    padding: 4px;
     text-align: center;
     vertical-align: middle;
+    z-index: 2;
     .fa {
-        font-size: 2em;
+        vertical-align: middle;
     }
     .text {
-        font-size: 1.5em;
         font-weight: bold;
+        font-family: monospace;
+        vertical-align: middle;
+    }
+    .text-large {
+        text-align: center;
+        font-weight: bold;
+        font-family: monospace;
+        vertical-align: middle;
+    }
+    .text-small {
         font-family: monospace;
     }
 }
 
+.sizes (@size) {
+    .round-btn {
+        height: @size;
+        border-radius: @size / 2;
+        line-height: @size / 2;
+        min-width: @size;
+        font-size: @size * 0.75;
+        .text-large {
+            font-size: @size;
+            padding: @size * 0.1;
+        }
+        .text-small {
+            font-size: @size * 0.5;
+        }
+        .fa {
+            line-height: @size / 2;
+        }
+    }
+}
+
+.sizes(75px);
+
+@media (max-width: 1000px), (max-height: 1000px) {
+    .sizes(70px);
+}
+
+@media (max-width: 800px), (max-height: 800px) {
+    .sizes(60px);
+}
+
+@media (max-width: 600px), (max-height: 600px) {
+    .sizes(40px);
+}
+
+@media (max-width: 500px), (max-height: 500px) {
+    .sizes(25px);
+}
+
 .really-round {
-    width: 3em;
+}
+
+.no-height {
+    height: auto;
 }
 
 .btn-dark {
@@ -45,6 +98,10 @@ body {
 
 .almost-hidden {
     opacity: 0.1;
+}
+
+.no-wrap {
+    white-space: nowrap;
 }
 
 .main {
@@ -63,11 +120,9 @@ body {
 }
 
 .main-menu {
-    padding: 5px;
-    height: 5em;
-    text-align: right;
-    line-height: 5em;
     .flex(0);
+    padding: 10px;
+    text-align: right;
 }
 
 .main-area {
@@ -94,10 +149,7 @@ body {
     }
 
     .main-menu {
-        width: 5em;
-        height: auto;
         text-align: center;
-        line-height: 3em;
     }
 }
 
@@ -109,8 +161,134 @@ body {
 
 .room {
     .flex(1);
+    .flex_vertical();
     border: 1px solid @neutral-color;
     border-radius: 6px;
     box-shadow: 0 0 5px @neutral-color;
     margin: 5px;
+    position: relative;
+}
+
+@canvas-padding: 5px;
+
+.room-canvas {
+    position: absolute;
+    top: @canvas-padding;
+    left: @canvas-padding;
+    right: @canvas-padding;
+    bottom: @canvas-padding;
+}
+
+.room-side {
+    .flex(1);
+    position: relative;
+}
+
+.room-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: auto;
+    max-height: 100%;
+}
+
+.room-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    max-height: 100%;
+    text-align: right;
+}
+
+.sensor_dt_root {
+    display: inline-block;
+    font-weight: bold;
+    font-family: monospace;
+}
+
+.sensor_dt_time {
+}
+
+.sensor_dt_date {
+    .flex_horizontal();
+}
+
+.sensor_dt_day {
+    .flex(0);
+}
+
+.sensor_dt_week_month {
+    .flex(1);
+    .flex_vertical();
+    text-align: left;
+}
+
+.sensor_dt_week, .sensor_dt_month {
+    .flex(1);
+}
+
+.main-messages {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    width: 200px;
+}
+
+.one-message {
+    margin: 5px;
+    padding: 10px;
+    z-index: 100;
+    font-size: 25px;
+    background-color: #ffc0cb;
+    border: 3px solid #cfa0ab;
+    color: #000000;
+}
+
+@details-padding: 10px;
+
+.main-details {
+    position: absolute;
+    top: @details-padding;
+    left: @details-padding;
+    bottom: @details-padding;
+    right: @details-padding;
+    .flex_vertical();
+    .flex_align(center);
+    .flex_cross_align(center);
+    display: none;
+}
+
+.detail-wrapper {
+    .flex(1);
+    border: 1px solid @neutral-color;
+    border-radius: 6px;
+    box-shadow: 0 0 5px @neutral-color;
+    background-color: rgba(127, 127, 127, 0.7);
+    width: 100%;
+    height: 100%;
+    max-width: 1000px;
+    max-height: 700px;
+    .flex_vertical();
+}
+
+.detail-surface {
+    .flex(1);
+    .flex_vertical();
+}
+
+.surface-graph {
+    .flex(1);
+}
+
+.detail-interval {
+    .flex(0);
+    text-align: center;
+}
+
+.detail-navigation {
+    .flex(0);
+    text-align: right;
 }

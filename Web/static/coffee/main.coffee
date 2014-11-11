@@ -7,12 +7,110 @@ window.Q = (value) ->
   if value then dfd.resolve(value)
   return dfd
 
+parseQuery = (query) ->
+  result = {}
+  toparse = query ? ''
+  if toparse[0] is '?'
+    toparse = toparse[1...]
+  parts = toparse.split('&')
+  for part in parts
+    nv = part.split('=')
+    if nv.length == 2
+      result[nv[0]] = nv[1]
+    else
+      result[part] = yes
+  return result
+
+class DetailsDialog
+
+  INTERVALS: [
+    days: 1
+    title: '1D'
+  ,
+    days: 3
+    title: '3D'
+  ,
+    days: 10
+    title: '10D'
+  ,
+    days: 28
+    title: '4W'
+  ,
+    days: 84
+    title: '12W'
+  ]
+
+  constructor: (@config) ->
+    @now = new Date().getTime()
+
+  showUI: () ->
+    div = $('#main-details')
+    sdiv = div.find('.detail-surface').empty()
+    idiv = div.find('.detail-interval').empty()
+    ndiv = div.find('.detail-navigation').empty()
+    makeIntervalBtn = (btn) =>
+      b = @config.app.makeButton(
+        text: btn.title
+        target: idiv
+        handler: =>
+          log 'Change interval:', btn.days
+      )
+    for item in @INTERVALS
+      makeIntervalBtn(item)
+    @days = @config.default ? 1
+    @config.app.makeButton(
+      icon: 'chevron-left'
+      target: ndiv
+      handler: =>
+        @moveDate(-1)
+    )
+    @config.app.makeButton(
+      icon: 'circle-o'
+      target: ndiv
+      handler: =>
+        @moveDate(0)
+    )
+    @config.app.makeButton(
+      icon: 'chevron-right'
+      target: ndiv
+      handler: =>
+        @moveDate(1)
+    )
+    @config.app.makeButton(
+      icon: 'close'
+      target: ndiv
+      handler: =>
+        div.hide()
+    )
+    div.show()
+    @config.onCreate(sdiv) if @config.onCreate
+    @moveDate(0)
+
+  moveDate: (dir = 0) ->
+    switch dir
+      when 0
+        @from = new Date(@now)
+        @to = new Date(@now)
+        if @config.forecast
+          @to.setDate(@to.getDate()+@days)
+        else
+          @from.setDate(@from.getDate()-@days)
+      when 1
+        @to.setDate(@to.getDate()+@days)
+        @from.setDate(@from.getDate()+@days)
+      when -1
+        @to.setDate(@to.getDate()-@days)
+        @from.setDate(@from.getDate()-@days)
+    log 'moveDate', @from, @to
+    @config.onRender() if @config.onRender
+
 class Storage
 
   constructor: ->
+    @query = parseQuery(window.location.search)
 
   get: (name, type, def) ->
-    value = localStorage[name] ? def
+    value = @query[name] ? localStorage[name] ? def
     switch (type ? 'str')
       when 'str' then return value
       when 'int'
@@ -37,10 +135,13 @@ class APIController
     @key = @storage.get(@STORAGE_KEY, 'str', '')
 
   call: (path, config = {}) ->
-    log 'Api Call', path, config
+    # log 'Api Call', path, config, window.location
     p = Q()
     login = =>
       input = window.prompt('Enter Key:')
+      if not input
+        p.reject('Cancelled by user')
+        return
       xhr(input).then( =>
         @key = input
         @storage.set(@STORAGE_KEY, input, 'str')
@@ -49,6 +150,7 @@ class APIController
     if (config.input ? 'json') is 'json'
       dataIn = JSON.stringify(body)
     xhr = (key = @key) =>
+      reqP = Q()
       $.ajax("#{@base}api/#{path}",
         contentType: 'application/json; charser=utf-8'
         data: dataIn
@@ -57,30 +159,33 @@ class APIController
         headers:
           'X-Key': key
         success: (data) ->
+          reqP.resolve(data)
           p.resolve(data)
         error: (err) ->
           log 'Api Error:', err
           if err.status is 401
             login()
             return
+          errorStr = "HTTP error: #{err.status}"
           if err.status is 403
-            p.reject(err.responseText)
-            return
-          p.reject("HTTP error: #{err.status}")
+            errorStr = err.responseText
+          p.reject(err.responseText)
+          reqP.reject(err.responseText)
       )
-      return p
+      return reqP
     xhr()
     return p
 
 class SensorDisplay
 
-  constructor: (@app, @config) ->
+  constructor: (@app, @config, @room) ->
     @extra = @app.parseExtra(@config.extra)
 
   initialize: ->
     return undefined # Render button etc here
 
   refresh: -> # Override
+  redraw: -> # Override
 
 
 window.SensorDisplay = SensorDisplay
@@ -93,6 +198,7 @@ window.registerSensor = (type, cls) ->
 class AppController
 
   KEY_UI_DARK: 'ui_dark'
+  KEY_NET_FORCE: 'net_force'
   POLL_INTERVAL_SEC: 20
 
   constructor: ->
@@ -101,11 +207,12 @@ class AppController
     @dark = @storage.get(@KEY_UI_DARK, 'bool', no)
     @sensors = []
     @listeners = []
+    @series = []
 
   loadData: ->
     p = Q()
     @api.call('config').then((config) =>
-      log 'Config loaded:', config
+      # log 'Config loaded:', config
       @makeUI(config)
     , @onError)
     return p
@@ -123,13 +230,65 @@ class AppController
       handler: handler
     )
 
+  addSerieListener: (config, handler) ->
+    @series.push(
+      config: config
+      handler: handler
+    )
+
   emitDataEvent: (data) ->
     for item in @listeners
       c = item.config
       if c.device is data.device and c.index is data.index and c.type is data.type and c.measure is data.measure
         item.handler(data)
 
+  makeNetworkControls: (menuTarget) ->
+    networkBtn = @makeButton(
+      icon: 'circle-o-notch'
+      target: menuTarget
+      handler: =>
+        networkChangeHandler()
+    )
+    $(document).ajaxStart(=>
+      networkBtn.$('i').addClass('fa-spin')
+    ).ajaxStop(=>
+      networkBtn.$('i').removeClass('fa-spin')
+    )
+    if document.webkitHidden
+      eventName = 'webkitvisibilitychange'
+      propName = 'webkitHidden'
+    else
+      eventName = 'visibilitychange'
+      propName = 'hidden'
+    refreshID = null
+    forceRefresh = @storage.get(@KEY_NET_FORCE, 'bool', no)
+    networkChangeHandler = =>
+      # log 'networkChangeHandler', navigator.onLine, document[propName]
+      if refreshID
+        clearTimeout(refreshID)
+        refreshID = null
+      if (navigator.onLine and document[propName] is no) or forceRefresh
+        networkBtn.almostHide(yes)
+        @pollData().always(=>
+          refreshID = setTimeout(=>
+            networkChangeHandler()
+          , @POLL_INTERVAL_SEC * 1000)
+        )
+      else
+        networkBtn.almostHide(no)
+    $(window).on('online', =>
+      networkChangeHandler()
+    ).on('offline', =>
+      networkChangeHandler()
+    )
+    $(document).on(eventName, =>
+      networkChangeHandler()
+    )
+    networkChangeHandler()
+
   makeUI: (config) ->
+    size = $(window)
+    @showError "Size: #{size.width()}x#{size.height()}"
     roomTarget = $('#main-surface')
     menuTarget = $('#main-menu')
     for item in config.layout ? []
@@ -138,15 +297,12 @@ class AppController
       icon: 'adjust'
       target: menuTarget
       handler: =>
-        @dark = !@dark
+        @dark = not @dark
         @storage.set(@KEY_UI_DARK, @dark, 'bool')
         @toggleDark()
     )
+    @makeNetworkControls(menuTarget)
     @toggleDark()
-    @pollData()
-    setInterval(() =>
-      @pollData()
-    , @POLL_INTERVAL_SEC * 1000)
 
   parseExtra: (extra) ->
     result = {}
@@ -174,6 +330,8 @@ class AppController
       btn.addClass(config.cls)
     if config.text
       $("<span class='text'></text>").appendTo(btn).text(config.text)
+    if config.contents
+      btn.append(config.contents)
     btn.on('click', (e) =>
       config.handler() if config.handler
     )
@@ -189,12 +347,26 @@ class AppController
           btn.removeClass('almost-hidden')
         else
           btn.addClass('almost-hidden')
+      '$': (arg) ->
+        if arg then return btn.find(arg)
+        return btn
     }
 
   makeRoom: (layout) ->
     # log 'Render room', layout
     wrap = $('<div></div>').addClass('room-wrap')
-    div = $('<div></div>').addClass('room')
+    div = $("""
+    <div class="room">
+      <div class="room-canvas"></div>
+      <div class="room-side">
+        <div class="room-top"></div>
+      </div>
+      <div class="room-side">
+        <div class="room-bottom"></div>
+      </div>
+    </div>""")
+    itemsTop = div.find('.room-top')
+    itemsBottom = div.find('.room-bottom')
     wrap.append(div)
     wrap.css(
       left: "#{layout.position[0]}%"
@@ -202,20 +374,70 @@ class AppController
       width: "#{layout.position[2]}%"
       height: "#{layout.position[3]}%"
     )
+    details = {}
+    roomControl =
+      plot: (data, colors, yaxes) =>
+        log 'plot', data
+        $.plot(div.find('.room-canvas'), data,
+          xaxes: [
+            mode: 'time'
+          ]
+          yaxes: yaxes ? {}
+          grid:
+            show: no
+          colors: colors
+        )
+      addDetail: (name, detail) =>
+        details[name] = detail
+      showDetail: (name) =>
+        detail = details[name]
+        detail.showUI() if detail
+
     for sensor in layout.sensors ? []
       cls = sensorTypes[sensor.plugin]
       if not cls
         log 'Sensor type not supported', sensor
         continue
-      obj = new cls(@, sensor)
+      obj = new cls(@, sensor, roomControl)
       html = obj.initialize(div)
       if html
-        div.append(html)
+        if sensor.revert
+          itemsBottom.append(html)
+        else
+          itemsTop.append(html)
       @sensors.push(obj)
     return wrap
 
-  onError: (message) ->
-    alert(message)
+  onError: (message) =>
+    @showError(message)
+
+  showError: (message) ->
+    div = $("""
+    <div class="one-message"></div>
+    """)
+    div.text(message)
+    $('#main-messages').append(div)
+    setTimeout( =>
+      div.remove()
+    , 7000)
+
+  fetchData: (sensors, from, to) ->
+    obj =
+      series: []
+    for item in sensors
+      obj.series.push(
+        device: item.device
+        type: item.type
+        index: item.index
+        measure: item.measure
+        from: from
+        to: to
+      )
+    return @api.call('data',
+      body: obj
+    ).then((data) =>
+      return data
+    , @onError)
 
   pollData: () ->
     for sensor in @sensors
@@ -229,15 +451,13 @@ class AppController
         index: item.config.index
         measure: item.config.measure
       )
-    @api.call('latest',
+    return @api.call('latest',
       body: obj
     ).then((data) =>
-      log 'Data:', data
+      # log 'Data:', data
       for sensor in data.sensors
         @emitDataEvent(sensor)
-    , (err) =>
-      log 'Error:', err
-    )
+    , @onError)
 
 $(document).ready ->
   log 'App started'

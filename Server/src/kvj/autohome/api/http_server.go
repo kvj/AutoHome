@@ -41,15 +41,18 @@ var mimes = map[string]string{
 type jsonEmpty struct{}
 
 type appSensor struct {
-	Device    int     `json:"device"`
-	Type      int     `json:"type"`
-	Index     int     `json:"index"`
-	Measure   int     `json:"measure"`
-	Plugin    string  `json:"plugin"`
-	Extra     string  `json:"extra"`
-	Revert    bool    `json:"revert"`
-	Value     float64 `json:"value"`
-	Timestamp int64   `json:"ts"`
+	Device    int             `json:"device"`
+	Type      int             `json:"type"`
+	Index     int             `json:"index"`
+	Measure   int             `json:"measure"`
+	Plugin    string          `json:"plugin"`
+	Extra     string          `json:"extra"`
+	Revert    bool            `json:"revert"`
+	Value     float64         `json:"value"`
+	Timestamp int64           `json:"ts"`
+	From      int64           `json:"from,omitempty"`
+	To        int64           `json:"to,omitempty"`
+	Data      json.RawMessage `json:"data,omitempty"`
 }
 
 type appLayout struct {
@@ -59,6 +62,14 @@ type appLayout struct {
 
 type appSensors struct {
 	Sensors []appSensor `json:"sensors"`
+}
+
+type appSeriesRequest struct {
+	Series []appSensor `json:"series"`
+}
+
+type appSeriesResponse struct {
+	Series [][]appSensor `json:"series"`
 }
 
 type appConfig struct {
@@ -89,6 +100,32 @@ func confApiHandler(body interface{}) (interface{}, string) {
 	return loadConfig(), ""
 }
 
+func dataApiHandler(body interface{}) (interface{}, string) {
+	seriesBody, ok := body.(*appSeriesRequest)
+	if !ok {
+		return nil, "Input data error"
+	}
+	response := &appSeriesResponse{
+		Series: make([][]appSensor, len(seriesBody.Series)),
+	}
+	for idx, sensor := range seriesBody.Series {
+		values, times, err := dbProvider.DataForPeriod(sensor.Device, sensor.Type, sensor.Index, sensor.Measure, sensor.From, sensor.To)
+		if err != nil {
+			log.Printf("Failed to load data: %v", err)
+			return nil, "DB error"
+		}
+		arr := make([]appSensor, len(values))
+		for i, _ := range values {
+			arr[i] = appSensor{
+				Value:     values[i],
+				Timestamp: times[i].Unix() * 1000,
+			}
+		}
+		response.Series[idx] = arr
+	}
+	return response, ""
+}
+
 func latestApiHandler(body interface{}) (interface{}, string) {
 	sensorsBody, ok := body.(*appSensors)
 	if !ok {
@@ -103,7 +140,7 @@ func latestApiHandler(body interface{}) (interface{}, string) {
 		}
 		// log.Printf("Data loaded: %v %v", value, time.Unix())
 		sensor.Value = value
-		sensor.Timestamp = time.Unix()
+		sensor.Timestamp = time.Unix() * 1000
 	}
 	return sensorsBody, ""
 }
@@ -113,8 +150,8 @@ type apiHandler func(body interface{}) (interface{}, string)
 type httpHandler func(w http.ResponseWriter, r *http.Request)
 
 func addApiCall(factory jsonFactory, handler apiHandler) httpHandler {
-	conf := loadConfig()
 	return func(w http.ResponseWriter, r *http.Request) {
+		conf := loadConfig()
 		key := r.Header.Get("X-Key")
 		keyPresent := false
 		for _, item := range conf.Keys {
@@ -163,7 +200,7 @@ func setupStatic() {
 	oneFile := func(path string, w http.ResponseWriter, r *http.Request) {
 		fileName := fmt.Sprintf("%s/%s", dataPath, path)
 		ext := filepath.Ext(fileName)[1:]
-		log.Printf("Static: %s %s", fileName, ext)
+		// log.Printf("Static: %s %s", fileName, ext)
 		if mime, found := mimes[ext]; found {
 			w.Header().Set("Content-Type", mime)
 		}
@@ -193,6 +230,9 @@ func StartServer(conf data.HashMap, db *data.DBProvider) {
 	http.HandleFunc("/api/latest", addApiCall(func() interface{} {
 		return &appSensors{}
 	}, latestApiHandler))
+	http.HandleFunc("/api/data", addApiCall(func() interface{} {
+		return &appSeriesRequest{}
+	}, dataApiHandler))
 	panic(http.ListenAndServe(fmt.Sprintf(":%s", config["port"]), nil))
 	// log.Printf("HTTP server started")
 }
