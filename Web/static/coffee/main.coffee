@@ -41,7 +41,17 @@ class DetailsDialog
   ]
 
   constructor: (@config) ->
-    @now = new Date().getTime()
+    @loading = 0
+
+  toggleLoading: (stop = no) ->
+    if stop
+      @loading--
+    else
+      @loading++
+    if @loading is 1
+      $('#main-details').find('.detail-indicator').removeClass('no-display')
+    if @loading is 0
+      $('#main-details').find('.detail-indicator').addClass('no-display')
 
   plot: (div, data, colors, yaxes) ->
     # log 'plot', data
@@ -98,9 +108,18 @@ class DetailsDialog
         div.addClass('no-display')
     )
     @visible = yes
+    @now = new Date().getTime()
     div.removeClass('no-display')
     @config.onCreate(sdiv) if @config.onCreate
     @moveDate(0)
+
+  addSurface: (d) ->
+    div = $('#main-details')
+    sdiv = div.find('.detail-surface')
+    sdiv.append(d)
+    return {
+      div: d
+    }
 
   changeInterval: (days) ->
     @days = days

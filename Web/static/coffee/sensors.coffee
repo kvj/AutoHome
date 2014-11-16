@@ -269,6 +269,7 @@ class DetailGraphDisplay extends SensorDisplay
     renderOne = (idx) =>
       from = control.from.getTime()
       to = control.to.getTime()
+      control.toggleLoading(no)
       @app.fetchData(@config.data[idx].sensors, from, to, @extra.forecast).then((data) =>
         if not control.visible then return
         series = []
@@ -300,7 +301,9 @@ class DetailGraphDisplay extends SensorDisplay
             })
           col = COLORS[conf.color] ? COLORS.yellow
           colors.push("rgb(#{col[0]}, #{col[1]}, #{col[2]})")
-        control.plot(control.divs[idx], series, colors, yaxes)
+        control.plot(control.divs[idx].div, series, colors, yaxes)
+      ).always(->
+        control.toggleLoading(yes)
       )
     control = new DetailsDialog(
       app: @app
@@ -309,7 +312,8 @@ class DetailGraphDisplay extends SensorDisplay
       onCreate: (div) =>
         control.divs = []
         for item in @config.data
-          control.divs.push($("<div class='surface-graph'></div>").appendTo(div))
+          sface = control.addSurface($("<div class='surface-item surface-graph'></div>"))
+          control.divs.push(sface)
       onRender: =>
         for item, idx in @config.data
           renderOne(idx)

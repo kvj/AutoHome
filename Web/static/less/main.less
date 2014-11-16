@@ -25,6 +25,9 @@ body {
 }
 
 .round-btn {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     background-image: none;
     background-color: #a0a0a0;
     border: 2px solid @neutral-color;
@@ -275,6 +278,24 @@ body {
     width: 1000px;
     height: 800px;
     .flex_vertical();
+    position: relative;
+}
+
+.detail-indicator {
+    position: absolute;
+    .flex_vertical();
+    .flex_align(center);
+    .flex_cross_align(center);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.indicator-wrap {
+    .flex(0);
+    font-size: 5em;
+    color: rgba(0xda, 0xda, 0xda, 0.5);
 }
 
 .detail-surface {
@@ -284,6 +305,13 @@ body {
 
 .surface-graph {
     .flex(1);
+}
+
+.surface-item {
+    position: relative;
+    .flex_vertical();
+    .flex_align(center);
+    .flex_cross_align(center);
 }
 
 .detail-interval {
