@@ -10,6 +10,10 @@ static void movement_on_create(PSensorTypeInfo info) {
 		pinfo->data.bytes[1] = 2; // Will report first value
 		pinfo->data.longs[1] = millis();
 		pinMode(pins[i], INPUT);
+		#ifdef AH_DEBUG
+		Serial.print("Movement add: ");
+		Serial.println(pins[i]);
+		#endif
 	}
 }
 
@@ -18,6 +22,10 @@ static void movement_on_loop(PSensorInfo pinfo) {
 	byte last = pinfo->data.bytes[1];
 	unsigned long now = millis();
 	unsigned long last_time = pinfo->data.longs[1];
+	#ifdef AH_DEBUG
+	Serial.print("Movement measure: ");
+	Serial.println(value);
+	#endif
 	if (last == value) {
 		// Not changed - skip
 		if (value == 1) {

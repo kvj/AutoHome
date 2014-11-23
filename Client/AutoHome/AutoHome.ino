@@ -1,4 +1,5 @@
 // vim:ft=c
+// #define AH_DEBUG
 #include "AutoHome.h"
 
 #include "plugin_DHT.cpp"
@@ -6,8 +7,6 @@
 #include "plugin_Light.cpp"
 
 #define SENSOR_TYPES 3
-
-// #define AH_DEBUG
 
 SensorTypeInfo sensorTypes[SENSOR_TYPES] = {
 	{0, dht_on_create, NULL, NULL, dht_on_measure, NULL},
@@ -23,6 +22,10 @@ PSensorInfo root_new_sensor_info(PSensorTypeInfo info, int index) {
 	pinfo->type = info->type;
 	pinfo->index = index;
 	sensors[sensorsCount++] = pinfo;
+	#ifdef AH_DEBUG
+	Serial.print("root_new_sensor_info: ");
+	Serial.println(info->type);
+	#endif
 	return pinfo;
 }
 
@@ -114,6 +117,7 @@ void loop() {
 	#ifdef AH_DEBUG
 	delay(3000);
 	Serial.println("One cycle:");
+	Serial.println(sensorsCount);
 	OutputBuffer output;
 	output.buffer[0] = CMD_MEASURE;
 	output.size = 1;
@@ -124,6 +128,10 @@ void loop() {
 		if (NULL != info->on_measure) {
 			// OK
 			info->on_measure(pinfo, &output);
+		}
+		if (NULL != info->on_loop) {
+			// OK
+			info->on_loop(pinfo);
 		}
 	}
 	root_send_output(&output);
