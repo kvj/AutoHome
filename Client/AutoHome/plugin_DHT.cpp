@@ -20,10 +20,12 @@ static void dht_on_measure(PSensorInfo pinfo, POutputBuffer buffer) {
 	DHT *dht = (DHT *)pinfo->data.pointers[1];
 	byte hum = (byte)round(dht->getHumidity());
 	byte temp = (byte)round(dht->getTemperature());
+	byte temp5 = (byte)round(dht->getTemperature()*5);
 	if (hum>0) {
 		root_add_measure(buffer, pinfo, 0, hum);
 	}
 	if (temp != 0) {
 		root_add_measure(buffer, pinfo, 1, temp);
+		root_add_measure(buffer, pinfo, 2, temp5);
 	}
 }

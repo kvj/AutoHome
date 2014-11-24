@@ -40,19 +40,32 @@ void root_add_measure(POutputBuffer buffer, PSensorInfo pinfo, byte index, byte 
 	#endif
 }
 
+void byte2chr(byte value, byte *buffer, int index) {
+	buffer[index] = (value & 15) + 0x40;
+	buffer[index+1] = ((value >> 4) & 15) + 0x40;
+}
+
+byte chr2byte(byte *buffer, int index) {
+	byte value = (buffer[index] - 0x40) + ((buffer[index+1] - 0x40) << 4);
+	return value;
+}
+
 bool root_send_output(POutputBuffer buffer) {
 	#ifdef AH_DEBUG
 	Serial.print("Send output: ");
 	Serial.println(buffer->size);
 	return true;
 	#endif
-	if (buffer->size == 13) {
-		buffer->size++; // Fix CRLF problem
+	byte outbuffer[MAX_OUTPUT*2+3]; // 2 bytes for every byte + size + leading 0
+	outbuffer[0] = 0;
+	byte2chr(buffer->size, (byte *)&outbuffer, 1);
+	int index = 3;
+	for (int i = 0; i < buffer->size; i++, index += 2) {
+		byte2chr(buffer->buffer[i], (byte *)&outbuffer, index);
 	}
-	Serial.write(buffer->size);
-	int sent = Serial.write(buffer->buffer, buffer->size);
+	int sent = Serial.write(outbuffer, index);
 	Serial.flush();
-	return sent == buffer->size;
+	return sent == index;
 }
 
 void root_new_command(PSensorInfo pinfo, POutputBuffer output, byte command) {
@@ -65,16 +78,32 @@ bool root_process_input() {
 		// No data
 		return false;
 	}
-	byte buffer[256];
+	byte buffer[MAX_OUTPUT];
 	int size = Serial.read();
-	if (size <= 0) {
+	if (size < 0) {
 		// Invalid data
 		return false;
 	}
-	int read = Serial.readBytes((char *)buffer, size);
-	if (read != size) {
-		// Invalid data
-		return false;
+	if (size>0) {
+		// Old style code
+		int read = Serial.readBytes((char *)buffer, size);
+		if (read != size) {
+			// Invalid data
+			return false;
+		}
+	} else {
+		// New style
+		byte sizeIn[2];
+		int read = Serial.readBytes((char *)sizeIn, 2);
+		if (read != 2) {
+			return false;
+		}
+		size = chr2byte((byte *)&sizeIn, 0);
+		byte bufferIn[2 * MAX_OUTPUT];
+		read = Serial.readBytes((char *)&bufferIn, 2*size);
+		for (int i = 0; i < size; i++) {
+			buffer[i] = chr2byte((byte *)&bufferIn, 2*i);
+		}
 	}
 	// Data OK
 	if (buffer[0] == CMD_MEASURE) {

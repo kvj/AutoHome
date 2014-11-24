@@ -8,10 +8,11 @@
 #include "AutoHome_config.h"
 
 #define CMD_MEASURE 0
+#define MAX_OUTPUT 120
 
 typedef struct {
 	int size;
-	byte buffer[256];
+	byte buffer[MAX_OUTPUT];
 } OutputBuffer;
 
 typedef OutputBuffer* POutputBuffer;
