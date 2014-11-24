@@ -23,6 +23,14 @@ func main() {
 		Device: "/dev/rfcomm1",
 		Index:  1,
 	})
+	talker.AddDevice(&serial.SerialConnection{
+		Device: "/dev/rfcomm2",
+		Index:  2,
+	})
+	talker.AddDevice(&serial.SerialConnection{
+		Device: "/dev/rfcomm3",
+		Index:  3,
+	})
 	mm, mms := internet.StartWeatherCrawler(0, "locid:JATY0021")
 	talker.AddMessageProvider(10, mm, mms)
 	talker.Start()

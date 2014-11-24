@@ -77,17 +77,12 @@ func (self *arduinoTalker) AddMessageProvider(index int, ch model.MMChannel, for
 				continue
 			}
 			log.Printf("Forecast: %v %v", index, len(messages))
-			message := messages[0]
-			err := self.db.DropForecast(index, message)
-			if err != nil {
-				log.Printf("Forecast drop failed: %v", err)
-				continue
-			}
-			err = self.db.AddMeasures(data.TypeForecast, index, messages)
+			err := self.db.AddMeasures(data.TypeForecast, index, messages)
 			if err != nil {
 				log.Printf("Forecast add failed: %v", err)
 				continue
 			}
+			log.Printf("Forecast added: %v", len(messages))
 		}
 	}()
 }
@@ -99,6 +94,9 @@ func (self *arduinoTalker) AddDevice(connection *SerialConnection) {
 		Max: 20,
 	})
 	model.AddCalculator(index, 0, 1, &model.AverageCalculator{
+		Max: 10,
+	})
+	model.AddCalculator(index, 0, 2, &model.AverageCalculator{
 		Max: 10,
 	})
 	model.AddCalculator(index, 2, 0, &model.AverageLimitCalculator{

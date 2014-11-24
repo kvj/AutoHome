@@ -108,8 +108,14 @@ func (self *DBProvider) AddMeasures(table int, device int, measures []*model.Mea
 		return err
 	}
 	table_name := "measure"
-	if table == TypeForecast {
+	if table == TypeForecast && len(measures) > 0 {
 		table_name = "forecast"
+		_, err := tx.Exec("delete from forecast where device=$1 and type=$2 and sensor=$3",
+			device, measures[0].Type, measures[0].Sensor)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 	for _, measure := range measures {
 		_, err = tx.Exec("insert into "+table_name+" "+
