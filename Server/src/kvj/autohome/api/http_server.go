@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 )
 
 var (
@@ -37,6 +38,10 @@ var mimes = map[string]string{
 	"css":  "text/css; charset=utf-8",
 	"png":  "image/png",
 }
+
+type connectionsList []*http.ResponseWriter
+
+var activeConnections = map[string]connectionsList{}
 
 type jsonEmpty struct{}
 
@@ -154,18 +159,55 @@ type jsonFactory func() interface{}
 type apiHandler func(body interface{}) (interface{}, string)
 type httpHandler func(w http.ResponseWriter, r *http.Request)
 
+func checkKey(conf *appConfig, r *http.Request) (string, bool) {
+	key := r.Header.Get("X-Key")
+	keyPresent := false
+	for _, item := range conf.Keys {
+		if item == key {
+			keyPresent = true
+			break
+		}
+	}
+	if !keyPresent {
+		return "", false
+	}
+	return key, true
+}
+
+func sseHandler(w http.ResponseWriter, r *http.Request) {
+	conf := loadConfig()
+	key, valid := checkKey(conf, r)
+	if !valid {
+		log.Printf("Invalid key provided: %s %v", key, conf)
+		http.Error(w, "Invalid Key", 401)
+		return
+	}
+	list, ok := activeConnections[key]
+	if !ok {
+		list = connectionsList{}
+	}
+	list = append(list, &w)
+	activeConnections[key] = list
+}
+
+func sseThread() {
+	ticker := time.NewTicker(10 * time.Second)
+	go func() {
+		for {
+			select {
+			// case signal := <-signals:
+			case <-ticker.C:
+				// Ping all connections
+			}
+		}
+	}()
+}
+
 func addApiCall(factory jsonFactory, handler apiHandler) httpHandler {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conf := loadConfig()
-		key := r.Header.Get("X-Key")
-		keyPresent := false
-		for _, item := range conf.Keys {
-			if item == key {
-				keyPresent = true
-				break
-			}
-		}
-		if !keyPresent {
+		key, valid := checkKey(conf, r)
+		if !valid {
 			log.Printf("Invalid key provided: %s %v", key, conf)
 			http.Error(w, "Invalid Key", 401)
 			return
@@ -238,6 +280,8 @@ func StartServer(conf data.HashMap, db *data.DBProvider) {
 	http.HandleFunc("/api/data", addApiCall(func() interface{} {
 		return &appSeriesRequest{}
 	}, dataApiHandler))
+	http.HandleFunc("/api/link", sseHandler)
+	sseThread()
 	panic(http.ListenAndServe(fmt.Sprintf(":%s", config["port"]), nil))
 	// log.Printf("HTTP server started")
 }
