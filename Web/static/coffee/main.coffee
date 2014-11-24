@@ -7,6 +7,9 @@ window.Q = (value) ->
   if value then dfd.resolve(value)
   return dfd
 
+window.Q.all = (arr) ->
+  return jQuery.when.apply(jQuery, arr)
+
 parseQuery = (query) ->
   result = {}
   toparse = query ? ''
@@ -307,29 +310,33 @@ class AppController
       propName = 'hidden'
     refreshID = null
     forceRefresh = @storage.get(@KEY_NET_FORCE, 'bool', no)
-    networkChangeHandler = =>
+    networkChangeHandler = (reason) =>
       # log 'networkChangeHandler', navigator.onLine, document[propName]
       if refreshID
         clearTimeout(refreshID)
         refreshID = null
       if (navigator.onLine and document[propName] is no) or forceRefresh
         networkBtn.almostHide(yes)
+        # log 'Autorefresh start', reason
         @pollData().always(=>
+          # log 'Autorefresh finish'
           refreshID = setTimeout(=>
-            networkChangeHandler()
+            networkChangeHandler('Auto-refresh')
           , @POLL_INTERVAL_SEC * 1000)
         )
       else
         networkBtn.almostHide(no)
     $(window).on('online', =>
-      networkChangeHandler()
+      networkChangeHandler('Online')
     ).on('offline', =>
-      networkChangeHandler()
+      networkChangeHandler('Offline')
     )
     $(document).on(eventName, =>
-      networkChangeHandler()
+      networkChangeHandler('Visibility')
     )
-    networkChangeHandler()
+    setTimeout(=>
+      networkChangeHandler('Startup')
+    , 1000)
 
   makeUI: (config) ->
     size = $(window)
@@ -422,7 +429,6 @@ class AppController
     details = {}
     roomControl =
       plot: (data, colors, yaxes) =>
-        log 'plot', data
         $.plot(div.find('.room-canvas'), data,
           xaxes: [
             mode: 'time'
@@ -485,9 +491,30 @@ class AppController
       return data
     , @onError)
 
+  fetchLatest: (sensors) ->
+    obj =
+      sensors: []
+    for item in sensors
+      obj.sensors.push(
+        device: item.device
+        type: item.type
+        index: item.index
+        measure: item.measure
+      )
+    return @api.call('latest',
+      body: obj
+    ).then((data) =>
+      # log 'Data:', data
+      for sensor in data.sensors
+        @emitDataEvent(sensor)
+    , @onError)
+
   pollData: () ->
+    promises = []
     for sensor in @sensors
-      sensor.refresh()
+      p = sensor.refresh()
+      if p then promises.push(p)
+    return Q.all(promises)
     obj =
       sensors: []
     for item in @listeners

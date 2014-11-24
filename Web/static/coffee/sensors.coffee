@@ -38,6 +38,9 @@ class ValueSensorDisplay extends SensorDisplay
     )
     return cont
 
+  refresh: ->
+    return @app.fetchLatest([@config])
+
   show: (value) ->
     text = ''
     if @extra.percent
@@ -115,6 +118,9 @@ class WeatherIconDisplay extends SensorDisplay
     )
     return cont
 
+  refresh: ->
+    return @app.fetchLatest([@config])
+
   show: (value) ->
     icon = 'sun'
     switch value
@@ -135,6 +141,9 @@ class LightDisplay extends SensorDisplay
       @show(data.value)
     )
     return undefined
+
+  refresh: ->
+    return @app.fetchLatest([@config])
 
   show: (value) ->
     min = @extra.min
@@ -165,6 +174,9 @@ class SensorFlagDisplay extends SensorDisplay
     @show(0)
     return cont
 
+  refresh: ->
+    return @app.fetchLatest([@config])
+
   show: (value) ->
     # log 'show', @extra
     @btn.almostHide(value == 1)
@@ -192,6 +204,14 @@ class SensorValueDirectionDisplay extends SensorDisplay
       @show(data.value, @value)
     )
     return cont
+
+  refresh: ->
+    return @app.fetchLatest([@config,
+      device: @config.device
+      type: @config.type
+      index: @config.index
+      measure: @extra.dir
+    ])
 
   show: (dir, value) ->
     # log 'Wind:', dir, value
@@ -231,7 +251,7 @@ class InlineGraphDisplay extends SensorDisplay
   refresh: ->
     to = new Date().getTime()
     from = to - 1 * 24 * 60 * 60 * 1000 # 3 days
-    @app.fetchData(@config.data, from, to).then((data) =>
+    return @app.fetchData(@config.data, from, to).then((data) =>
       series = []
       yaxes = []
       colors = []
