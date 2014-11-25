@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"kvj/autohome/model"
 	"log"
 	"time"
@@ -16,7 +16,10 @@ const (
 )
 
 type DBProvider struct {
-	db *sql.DB
+	db             *sql.DB
+	listener       *pq.Listener
+	SensorChannel  chan string
+	CommandChannel chan string
 }
 
 type HashMap map[string]string
@@ -32,10 +35,54 @@ func OpenDB(config HashMap) *DBProvider {
 	if err != nil {
 		log.Fatal("DB open error: %v", err)
 	}
-	provider := &DBProvider{
-		db: db,
+	reportProblem := func(ev pq.ListenerEventType, err error) {
+		if err != nil {
+			log.Printf("Listener error: %v", err)
+		}
 	}
+	listener := pq.NewListener(url, 10*time.Second, time.Hour, reportProblem)
+	err = listener.Listen("sensor")
+	if err != nil {
+		log.Fatal("DB channel open error: %v", err)
+	}
+	err = listener.Listen("command")
+	if err != nil {
+		log.Fatal("DB channel2 open error: %v", err)
+	}
+	provider := &DBProvider{
+		db:             db,
+		listener:       listener,
+		SensorChannel:  make(chan string),
+		CommandChannel: make(chan string),
+	}
+	go func() {
+		for {
+			select {
+			case n := <-listener.Notify:
+				if n.Channel == "sensor" {
+					provider.SensorChannel <- n.Extra
+					continue
+				}
+				if n.Channel == "command" {
+					provider.CommandChannel <- n.Extra
+					continue
+				}
+				log.Printf("Unknown message: %v", n)
+			}
+		}
+	}()
 	return provider
+}
+
+func (self *DBProvider) Notify(channel string, payload string) {
+	go func() {
+		_, err := self.db.Query("NOTIFY " + channel + ", '" + payload + "'")
+		if err != nil {
+			log.Printf("Failed to notify %v: %v", channel, err)
+			return
+		}
+		// log.Printf("Notify OK")
+	}()
 }
 
 func (self *DBProvider) DataForPeriod(table int, device, _type, index, measure int, from, to int64) ([]float64, []*time.Time, error) {

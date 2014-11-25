@@ -10,6 +10,15 @@ type MeasureMessage struct {
 	Time                  time.Time
 }
 
+type MeasureNotification struct {
+	Device    int     `json:"device"`
+	Type      int     `json:"type"`
+	Index     int     `json:"index"`
+	Measure   int     `json:"measure"`
+	Value     float64 `json:"value"`
+	Timestamp int64   `json:"ts"`
+}
+
 type MeasureMessages []*MeasureMessage
 
 type MMChannel chan *MeasureMessage

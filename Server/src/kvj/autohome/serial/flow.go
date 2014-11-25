@@ -1,6 +1,7 @@
 package serial
 
 import (
+	"encoding/json"
 	"kvj/autohome/data"
 	"kvj/autohome/model"
 	"log"
@@ -55,8 +56,27 @@ func (self *arduinoTalker) Start() {
 			return
 		case <-self.ticker.C:
 			self.poll()
+			// case n := <-self.db.SensorChannel:
+			//	log.Printf("Here is Sensor message: %v", n)
 		}
 	}
+}
+
+func (self *arduinoTalker) notifyWithMessage(index int, message *model.MeasureMessage) {
+	m := &model.MeasureNotification{
+		Device:  index,
+		Type:    message.Type,
+		Index:   message.Sensor,
+		Measure: message.Measure,
+		Value:   message.Value,
+	}
+	bodyOutBytes, err := json.Marshal(m)
+	if err == nil {
+		self.db.Notify("sensor", string(bodyOutBytes))
+	} else {
+		log.Printf("JSON error: %v", err)
+	}
+
 }
 
 func (self *arduinoTalker) AddMessageProvider(index int, ch model.MMChannel, forecast model.MMsChannel) {
@@ -67,7 +87,9 @@ func (self *arduinoTalker) AddMessageProvider(index int, ch model.MMChannel, for
 			err := self.db.AddMeasure(index, message)
 			if err != nil {
 				log.Printf("Error: %v", err)
+				continue
 			}
+			self.notifyWithMessage(index, message)
 		}
 	}()
 	go func() {
@@ -117,7 +139,9 @@ func (self *arduinoTalker) AddDevice(connection *SerialConnection) {
 			err := self.db.AddMeasure(index, message)
 			if err != nil {
 				log.Printf("Error: %v", err)
+				continue
 			}
+			self.notifyWithMessage(index, message)
 		}
 	}()
 }
