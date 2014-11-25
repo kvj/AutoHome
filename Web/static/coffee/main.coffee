@@ -298,7 +298,7 @@ class AppController
   KEY_UI_DARK: 'ui_dark'
   KEY_NET_FORCE: 'net_force'
   KEY_NET_LINK: 'net_link'
-  POLL_INTERVAL_SEC: 60 * 5
+  POLL_INTERVAL_SEC: 60 * 10
 
   constructor: ->
     @storage = new Storage()
@@ -361,6 +361,7 @@ class AppController
       propName = 'hidden'
     refreshID = null
     forceRefresh = @storage.get(@KEY_NET_FORCE, 'bool', no)
+    pollingNow = no
     networkChangeHandler = (reason) =>
       # log 'networkChangeHandler', navigator.onLine, document[propName]
       if refreshID
@@ -369,7 +370,10 @@ class AppController
       if (navigator.onLine and document[propName] is no) or forceRefresh
         networkBtn.almostHide(yes)
         # log 'Autorefresh start', reason
+        if pollingNow then return
+        pollingNow = yes
         @pollData().always(=>
+          pollingNow = no
           # log 'Autorefresh finish'
           refreshID = setTimeout(=>
             networkChangeHandler('Auto-refresh')
@@ -396,7 +400,7 @@ class AppController
         log 'SSE closed'
         sseBtn.setColor('failure')
       message: (obj) =>
-        log 'SSE message', obj
+        # log 'SSE message', obj
         if obj.type is 'sensor'
           # Notify listeners
           @emitDataEvent(obj.data)

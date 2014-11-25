@@ -42,6 +42,7 @@ class ValueSensorDisplay extends SensorDisplay
     return @app.fetchLatest([@config])
 
   show: (value) ->
+    # log 'Value display', @config, value
     text = ''
     if @extra.percent
       text = "#{Math.round(value)}%"
