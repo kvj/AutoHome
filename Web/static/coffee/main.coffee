@@ -223,6 +223,56 @@ class APIController
       return reqP
     xhr()
     return p
+  
+  makeSSE: (config) ->
+    if not window.EventSource then return undefined
+    sse = null
+    closed = yes
+    restartID = null
+    onOpen = =>
+      # log 'makeSSE onOpen'
+      config.open() if config.open
+      clearTimeout(restartID) if restartID
+    onError = (e) =>
+      log 'makeSSE onError', e
+      sse.close() if sse
+      sse = null
+      config.close() if config.close
+      restartID = setTimeout(=>
+        if sse is null and not closed
+          sse = make()
+      , 10000)
+    onMessage = (e) =>
+      # log 'makeSSE onMessage', e
+      if e.data is '' then return
+      try
+        parsed = JSON.parse(e.data)
+        config.message(parsed) if config.message
+      catch error
+        log 'Failed to parse:', e.data, error
+      
+    make = =>
+      evtSource = new EventSource("#{@base}api/link?key=#{@key}")
+      evtSource.addEventListener('error', onError)
+      evtSource.addEventListener('open', onOpen)
+      evtSource.addEventListener('message', onMessage)
+      config.connect() if config.connect
+      return evtSource
+    return {
+      on: (event, handler) =>
+        return evtSource.addEventListener(event, handler)
+      close: () =>
+        closed = yes
+        sse.close() if sse
+        sse = null
+        config.close() if config.close
+      open: =>
+        sse.close() if sse
+        closed = no
+        sse = make()
+      opened: =>
+        return sse isnt null
+    }
 
 class SensorDisplay
 
@@ -247,7 +297,8 @@ class AppController
 
   KEY_UI_DARK: 'ui_dark'
   KEY_NET_FORCE: 'net_force'
-  POLL_INTERVAL_SEC: 20
+  KEY_NET_LINK: 'net_link'
+  POLL_INTERVAL_SEC: 60 * 5
 
   constructor: ->
     @storage = new Storage()
@@ -337,6 +388,38 @@ class AppController
     setTimeout(=>
       networkChangeHandler('Startup')
     , 1000)
+    sse = @api.makeSSE(
+      open: =>
+        log 'SSE connected'
+        sseBtn.setColor('success')
+      close: =>
+        log 'SSE closed'
+        sseBtn.setColor('failure')
+      message: (obj) =>
+        log 'SSE message', obj
+        if obj.type is 'sensor'
+          # Notify listeners
+          @emitDataEvent(obj.data)
+      connect: =>
+        log 'SSE connect start'
+        sseBtn.almostHide(yes)
+        sseBtn.setColor()
+    )
+    if sse
+      sseBtn = @makeButton(
+        icon: 'wifi'
+        target: menuTarget
+        handler: =>
+          if sse.opened()
+            sse.close()
+          else
+            sse.open()
+          sseBtn.almostHide(sse.opened())
+      )
+      sseBtn.almostHide(no)
+      forceLink = @storage.get(@KEY_NET_LINK, 'bool', no)
+      if forceLink then sse.open()
+
 
   makeUI: (config) ->
     size = $(window)
@@ -389,11 +472,16 @@ class AppController
     )
     if config.target
       config.target.append(btn)
+    BTN_CLASSES = ['btn-success', 'btn-failure']
     return {
       text: (text) =>
         btn.find('.text').text(text)
       html: (html) =>
         btn.html(html)
+      setColor: (color) =>
+        for c in BTN_CLASSES
+          btn.removeClass(c)
+        btn.addClass("btn-#{color}") if color
       almostHide: (visible) =>
         if visible
           btn.removeClass('almost-hidden')

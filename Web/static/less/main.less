@@ -1,6 +1,10 @@
 @import "_functions.less";
 
 @neutral-color: #909090;
+
+@success-error: #88ff88;
+@failure-error: #ff8888;
+
 @round-button-size: 75px;
 
 html {
@@ -31,6 +35,7 @@ body {
     background-image: none;
     background-color: #a0a0a0;
     border: 2px solid @neutral-color;
+    color: #ffffff;
     margin: 3px;
     padding: 4px;
     text-align: center;
@@ -53,6 +58,14 @@ body {
     .text-small {
         font-family: monospace;
     }
+}
+
+.btn-success {
+    color: @success-error;
+}
+
+.btn-failure {
+    color: @failure-error;
 }
 
 .sizes (@size) {
@@ -115,7 +128,6 @@ body {
     .flex_vertical();
     background-color: #ffffff;
     .round-btn {
-        color: #ffffff;
     }
 }
 
@@ -156,7 +168,6 @@ body {
     }
 
     .main-menu {
-        text-align: center;
     }
 }
 

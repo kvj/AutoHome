@@ -39,10 +39,6 @@ var mimes = map[string]string{
 	"png":  "image/png",
 }
 
-type connectionsList []*http.ResponseWriter
-
-var activeConnections = map[string]connectionsList{}
-
 type jsonEmpty struct{}
 
 type appSensor struct {
@@ -81,6 +77,11 @@ type appSeriesResponse struct {
 type appConfig struct {
 	Keys   []string    `json:"keys"`
 	Layout []appLayout `json:"layout"`
+}
+
+type pushMessage struct {
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
 }
 
 func loadConfig() *appConfig {
@@ -161,6 +162,10 @@ type httpHandler func(w http.ResponseWriter, r *http.Request)
 
 func checkKey(conf *appConfig, r *http.Request) (string, bool) {
 	key := r.Header.Get("X-Key")
+	if key == "" {
+		// in query?
+		key = r.URL.Query().Get("key")
+	}
 	keyPresent := false
 	for _, item := range conf.Keys {
 		if item == key {
@@ -178,28 +183,65 @@ func sseHandler(w http.ResponseWriter, r *http.Request) {
 	conf := loadConfig()
 	key, valid := checkKey(conf, r)
 	if !valid {
-		log.Printf("Invalid key provided: %s %v", key, conf)
+		log.Printf("Invalid key provided: %s %v", key, conf.Keys)
 		http.Error(w, "Invalid Key", 401)
 		return
 	}
-	list, ok := activeConnections[key]
-	if !ok {
-		list = connectionsList{}
+	log.Printf("Have new link: %v", key)
+	w.Header().Set("Content-Type", "text/event-stream;charset=utf-8")
+	w.WriteHeader(200)
+	sendData := func(data string) error {
+		_, err := w.Write([]byte("data:" + data + "\n\n"))
+		if err != nil {
+			// Close
+			return err
+		}
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+		return nil
 	}
-	list = append(list, &w)
-	activeConnections[key] = list
+	sendPushMessage := func(m string, mtype string) (string, error) {
+		mout := &pushMessage{
+			Type: mtype,
+		}
+		err := mout.Data.UnmarshalJSON([]byte(m))
+		if err != nil {
+			log.Printf("Failed to unmarshal %v", err)
+			return "", err
+		}
+		bytes, err := json.Marshal(mout)
+		if err != nil {
+			log.Printf("Failed to marshal %v", err)
+			return "", err
+		}
+		return string(bytes), nil
+	}
+	sendData("")
+	ticker := time.NewTicker(30 * time.Second)
+	for {
+		select {
+		case m := <-dbProvider.SensorChannel:
+			// log.Printf("Have sensor data: %v", m)
+			str, err := sendPushMessage(m, "sensor")
+			if err == nil {
+				sendData(str)
+			}
+		case <-ticker.C:
+			// Ping connection
+			err := sendData("")
+			if err != nil {
+				// Failed to write
+				log.Printf("Failed to ping: %v", err)
+				ticker.Stop()
+				return
+			}
+		}
+	}
 }
 
 func sseThread() {
-	ticker := time.NewTicker(10 * time.Second)
 	go func() {
-		for {
-			select {
-			// case signal := <-signals:
-			case <-ticker.C:
-				// Ping all connections
-			}
-		}
 	}()
 }
 
@@ -208,7 +250,7 @@ func addApiCall(factory jsonFactory, handler apiHandler) httpHandler {
 		conf := loadConfig()
 		key, valid := checkKey(conf, r)
 		if !valid {
-			log.Printf("Invalid key provided: %s %v", key, conf)
+			log.Printf("Invalid key provided: %s %v", key, conf.Keys)
 			http.Error(w, "Invalid Key", 401)
 			return
 		}
