@@ -76,11 +76,12 @@ func OpenDB(config HashMap) *DBProvider {
 
 func (self *DBProvider) Notify(channel string, payload string) {
 	go func() {
-		_, err := self.db.Query("NOTIFY " + channel + ", '" + payload + "'")
+		rows, err := self.db.Query("NOTIFY " + channel + ", '" + payload + "'")
 		if err != nil {
 			log.Printf("Failed to notify %v: %v", channel, err)
 			return
 		}
+		rows.Close()
 		// log.Printf("Notify OK")
 	}()
 }
