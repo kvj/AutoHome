@@ -29,11 +29,12 @@ PSensorInfo root_new_sensor_info(PSensorTypeInfo info, int index) {
 	return pinfo;
 }
 
-void root_add_measure(POutputBuffer buffer, PSensorInfo pinfo, byte index, byte measure) {
+void root_add_measure(POutputBuffer buffer, PSensorInfo pinfo, byte index, int measure) {
 	buffer->buffer[buffer->size++] = pinfo->type;
 	buffer->buffer[buffer->size++] = pinfo->index;
 	buffer->buffer[buffer->size++] = index;
-	buffer->buffer[buffer->size++] = measure;
+	buffer->buffer[buffer->size++] = measure & 0xff;
+	buffer->buffer[buffer->size++] = (measure >> 8) & 0xff;
 	#ifdef AH_DEBUG
 	Serial.print("Add measure: ");
 	Serial.println(measure);

@@ -2,7 +2,7 @@
 #define _AUTOHOME_CONFIG_H_
 
 #define Movement_TreshholdMSEC 300000L
-#define Light_Treshhold 10
+#define Light_Treshhold 20
 
 #define LED_PIN 13
 
