@@ -42,12 +42,15 @@ func (self *SerialConnection) listen() {
 		}
 		// Some test
 		if buffer[0] == Message_Measure {
-			for i := 1; i < len(buffer)-3; i += 4 {
+			for i := 1; i < len(buffer)-4; i += 5 {
+				var value int
+				value = int(buffer[i+4])
+				value = (value << 8) + int(buffer[i+3])
 				message := &model.MeasureMessage{
 					Type:    int(buffer[i]),
 					Sensor:  int(buffer[i+1]),
 					Measure: int(buffer[i+2]),
-					Value:   float64(buffer[i+3]),
+					Value:   float64(value),
 				}
 				// log.Printf("Message prepared:", message)
 				self.queue <- message

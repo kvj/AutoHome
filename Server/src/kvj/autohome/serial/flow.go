@@ -113,17 +113,17 @@ func (self *arduinoTalker) AddDevice(connection *SerialConnection) {
 	index := len(self.devices)
 	self.devices = append(self.devices, connection)
 	model.AddCalculator(index, 0, 0, &model.AverageCalculator{
-		Max: 20,
+		Max:        20,
+		Normalizer: model.TempNormalizer,
 	})
 	model.AddCalculator(index, 0, 1, &model.AverageCalculator{
-		Max: 10,
-	})
-	model.AddCalculator(index, 0, 2, &model.AverageCalculator{
-		Max: 10,
+		Max:        10,
+		Normalizer: model.TempNormalizer,
 	})
 	model.AddCalculator(index, 2, 0, &model.AverageLimitCalculator{
 		AverageCalculator: model.AverageCalculator{
-			Max: 30,
+			Max:        30,
+			Normalizer: model.LightNormalizer,
 		},
 		Limit: 10,
 	})
