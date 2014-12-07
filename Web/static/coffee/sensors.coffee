@@ -306,6 +306,7 @@ COLORS =
   'cyan':    [0x2a, 0xa1, 0x98]
   'green':   [0x85, 0x99, 0x00]
   'grey':    [0x83, 0x94, 0x96]
+  'black':   [0x00, 0x00, 0x00]
 
 class DetailGraphDisplay extends SensorDisplay
  
@@ -329,13 +330,14 @@ class DetailGraphDisplay extends SensorDisplay
         for data, i in data.series
           conf = @config.data[idx].sensors[i]
           [arr, min, max] = prepareSeries(data, yes)
-          series.push(
+          oneItem =
             data: arr
+            yaxis: if conf.percent then 1 else yaxes.length+1
             lines:
               show: yes
+              steps: conf.steps
               fill: conf.fill
-            yaxis: if conf.percent then 1 else yaxes.length+1
-          )
+          series.push(oneItem)
           gap = (max - min) / 2
           if not conf.percent
             yaxes.push({
