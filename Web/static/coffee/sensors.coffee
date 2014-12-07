@@ -167,6 +167,7 @@ class RoomClassDisplay extends SensorDisplay
     @app.addDataListener(@config, (data) =>
       @show(data.value)
     )
+    @show(0)
     return undefined
 
   refresh: ->
