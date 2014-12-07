@@ -5,14 +5,25 @@ import (
 	"math"
 )
 
+type ValueNormalizer func(value float64) float64
+
+func TempNormalizer(value float64) float64 {
+	return value/10 - 50
+}
+
+func LightNormalizer(value float64) float64 {
+	return value / 4
+}
+
 type Calculator interface {
 	Calculate(message *MeasureMessage) *MeasureMessage
 }
 
 type AverageCalculator struct {
-	Max   int
-	times int
-	value float64
+	Max        int
+	Normalizer ValueNormalizer
+	times      int
+	value      float64
 }
 
 func (self *AverageCalculator) reset() {
@@ -26,6 +37,9 @@ func (self *AverageCalculator) Calculate(message *MeasureMessage) *MeasureMessag
 	// log.Printf("Average %v %v:", self, message)
 	if self.times >= self.Max {
 		message.Value = self.value / float64(self.times)
+		if self.Normalizer != nil {
+			message.Value = self.Normalizer(message.Value)
+		}
 		self.reset()
 		return message
 	}
@@ -43,6 +57,9 @@ func (self *AverageLimitCalculator) Calculate(message *MeasureMessage) *MeasureM
 	self.prev = message.Value
 	if math.Abs(prev-message.Value) > self.Limit {
 		self.reset()
+		if self.Normalizer != nil {
+			message.Value = self.Normalizer(message.Value)
+		}
 		return message // Dropped over limit
 	}
 	self.value += message.Value
@@ -50,6 +67,9 @@ func (self *AverageLimitCalculator) Calculate(message *MeasureMessage) *MeasureM
 	// log.Printf("Average %v %v:", self, message)
 	if self.times >= self.Max {
 		message.Value = self.value / float64(self.times)
+		if self.Normalizer != nil {
+			message.Value = self.Normalizer(message.Value)
+		}
 		self.reset()
 		return message
 	}
