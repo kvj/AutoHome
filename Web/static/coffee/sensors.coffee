@@ -62,13 +62,13 @@ class DateSensorDisplay extends SensorDisplay
     )
     return cont
 
-  refresh: ->
+  redraw: ->
     format = ''
     if @extra.time
       format = 'HH:mm'
     if @extra.date
       format = 'dddd, MMMM d'
-    dt = new Date()
+    dt = new Date((new Date()).getTime() + 30*1000) # 30 seconds from now
     @btn.text(dt.format(format))
 
 registerSensor('date', DateSensorDisplay)
@@ -160,6 +160,28 @@ class LightDisplay extends SensorDisplay
     )
 
 registerSensor('light', LightDisplay)
+
+class RoomClassDisplay extends SensorDisplay
+
+  initialize: (@roomDiv) ->
+    @app.addDataListener(@config, (data) =>
+      @show(data.value)
+    )
+    return undefined
+
+  refresh: ->
+    return @app.fetchLatest([@config])
+
+  show: (value) ->
+    offCls = @extra.off ? 'off'
+    onCls = @extra.on ? 'on'
+    if value
+      @roomDiv.removeClass("room-cls-#{offCls}").addClass("room-cls-#{onCls}")
+    else
+      @roomDiv.removeClass("room-cls-#{onCls}").addClass("room-cls-#{offCls}")
+
+
+registerSensor('class', RoomClassDisplay)
 
 class SensorFlagDisplay extends SensorDisplay
 

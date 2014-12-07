@@ -442,6 +442,10 @@ class AppController
     )
     @makeNetworkControls(menuTarget)
     @toggleDark()
+    setInterval(() =>
+      @redrawSensors()
+    , 30*1000)
+    @redrawSensors()
 
   parseExtra: (extra) ->
     result = {}
@@ -600,6 +604,10 @@ class AppController
       for sensor in data.sensors
         @emitDataEvent(sensor)
     , @onError)
+
+  redrawSensors: () ->
+    for sensor in @sensors
+      sensor.redraw()
 
   pollData: () ->
     promises = []
