@@ -8,33 +8,28 @@ static void light_on_create(PSensorTypeInfo info) {
 		// Create
 		PSensorInfo pinfo = root_new_sensor_info(info, i);
 		pinfo->data.bytes[0] = pins[i];
-		pinfo->data.bytes[1] = 0; // Initial light
+		pinfo->data.ints[1] = 0; // Initial light
 		pinfo->data.longs[1] = millis();
 	}
 }
 
 static void light_on_measure(PSensorInfo pinfo, POutputBuffer buffer) {
-	int value = analogRead(pinfo->data.bytes[0]) / 4;
-	if (value >= 256) {
-		// Too large
-		value = 255;
-	}
-	byte current = (byte)value;
+	int value = analogRead(pinfo->data.bytes[0]);
 	#ifdef AH_DEBUG
 	Serial.print("Light measure: ");
-	Serial.println(current);
+	Serial.println(value);
 	#endif
-	root_add_measure(buffer, pinfo, 0, current);
+	root_add_measure(buffer, pinfo, 0, value);
 }
 
 static void light_on_loop(PSensorInfo pinfo) {
 	unsigned long now = millis();
 	unsigned long last_time = pinfo->data.longs[1];
-	byte current = (analogRead(pinfo->data.bytes[0]) / 4);
-	if (abs(pinfo->data.bytes[1] - current) <= Light_Treshhold) {
+	int current = analogRead(pinfo->data.bytes[0]);
+	if (abs(pinfo->data.ints[1] - current) <= Light_Treshhold) {
 		return; // Nothing to send yet
 	}
-	pinfo->data.bytes[1] = current;
+	pinfo->data.ints[1] = current;
 	pinfo->data.longs[1] = now;
 
 	OutputBuffer output;
