@@ -327,13 +327,43 @@ class DetailGraphDisplay extends SensorDisplay
           position: "right"
           labelWidth: 30
         })
+        sources = {}
         for data, i in data.series
           conf = @config.data[idx].sensors[i]
-          [arr, min, max] = prepareSeries(data, yes)
+          if conf.source
+            map = {}
+            for item in data
+              map[item.ts] = item.value
+            sources[conf.source] = map
+            continue
+          [arr, min, max] = prepareSeries(data, not (conf.steps ? no))
           oneItem =
             data: arr
             yaxis: if conf.percent then 1 else yaxes.length+1
-            lines:
+          if conf.direction
+            do (conf) =>
+              lastX = -1
+              oneItem.points =
+                show: yes
+                symbol: (ctx, x, y, radius, shadow, rawx, rawy) =>
+                  if shadow then return
+                  if lastX>=0 and x-lastX<3*radius
+                    return
+                  else
+                    lastX = x
+                  angle = sources[conf.direction][rawx]
+                  if not angle
+                    return
+                  # log 'Draw', sources, arguments, sources[conf.direction][rawx]
+                  ctx.save()
+                  ctx.translate(x, y)
+                  ctx.rotate(Math.PI*angle / 180 + Math.PI*1/2)
+                  ctx.moveTo(-radius / 2, 0)
+                  ctx.lineTo(4*radius, 0)
+                  ctx.arc(0, 0, radius, 0, Math.PI * 2, no)
+                  ctx.restore()
+          else
+            oneItem.lines =
               show: yes
               steps: conf.steps
               fill: conf.fill
