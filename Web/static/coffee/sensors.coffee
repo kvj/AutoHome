@@ -38,8 +38,8 @@ class ValueSensorDisplay extends SensorDisplay
     )
     return cont
 
-  refresh: ->
-    return @app.fetchLatest([@config])
+  refresh: (actual) ->
+    return @app.fetchLatest([@config], actual)
 
   show: (value) ->
     # log 'Value display', @config, value
@@ -119,8 +119,8 @@ class WeatherIconDisplay extends SensorDisplay
     )
     return cont
 
-  refresh: ->
-    return @app.fetchLatest([@config])
+  refresh: (actual) ->
+    return @app.fetchLatest([@config], actual)
 
   show: (value) ->
     icon = 'sun'
@@ -143,8 +143,8 @@ class LightDisplay extends SensorDisplay
     )
     return undefined
 
-  refresh: ->
-    return @app.fetchLatest([@config])
+  refresh: (actual) ->
+    return @app.fetchLatest([@config], actual)
 
   show: (value) ->
     min = @extra.min
@@ -170,8 +170,8 @@ class RoomClassDisplay extends SensorDisplay
     @show(0)
     return undefined
 
-  refresh: ->
-    return @app.fetchLatest([@config])
+  refresh: (actual) ->
+    return @app.fetchLatest([@config], actual)
 
   show: (value) ->
     offCls = @extra.off ? 'off'
@@ -198,8 +198,8 @@ class SensorFlagDisplay extends SensorDisplay
     @show(0)
     return cont
 
-  refresh: ->
-    return @app.fetchLatest([@config])
+  refresh: (actual) ->
+    return @app.fetchLatest([@config], actual)
 
   show: (value) ->
     # log 'show', @extra
@@ -229,13 +229,13 @@ class SensorValueDirectionDisplay extends SensorDisplay
     )
     return cont
 
-  refresh: ->
+  refresh: (actual) ->
     return @app.fetchLatest([@config,
       device: @config.device
       type: @config.type
       index: @config.index
       measure: @extra.dir
-    ])
+    ], actual)
 
   show: (dir, value) ->
     # log 'Wind:', dir, value
@@ -343,17 +343,21 @@ class DetailGraphDisplay extends SensorDisplay
           if conf.direction
             do (conf) =>
               lastX = -1
+              lastY = -1
+              spaceSq = (x, y) ->
+                return (lastX - x)*(lastX - x) + (lastY - y)*(lastY - y)
               oneItem.points =
                 show: yes
                 symbol: (ctx, x, y, radius, shadow, rawx, rawy) =>
                   if shadow then return
-                  if lastX>=0 and x-lastX<3*radius
-                    return
-                  else
-                    lastX = x
                   angle = sources[conf.direction][rawx]
                   if not angle
                     return
+                  if lastX>=0 and spaceSq(x, y)<8*radius*radius
+                    return
+                  else
+                    lastX = x
+                    lastY = y
                   # log 'Draw', sources, arguments, sources[conf.direction][rawx]
                   ctx.save()
                   ctx.translate(x, y)

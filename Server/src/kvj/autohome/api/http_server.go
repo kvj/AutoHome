@@ -1,11 +1,11 @@
 package api
 
 import (
-	"fmt"
-	"kvj/autohome/data"
-	// "kvj/autohome/model"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"kvj/autohome/data"
+	//"kvj/autohome/model"
 	"log"
 	"net/http"
 	"os"
@@ -17,6 +17,7 @@ import (
 var (
 	dbProvider *data.DBProvider
 	config     data.HashMap
+	cache      []*appSensor
 )
 
 func dataFolder() string {
@@ -63,6 +64,7 @@ type appLayout struct {
 
 type appSensors struct {
 	Sensors []appSensor `json:"sensors"`
+	Actual  bool        `json:"actual,omitempty"`
 }
 
 type appSeriesRequest struct {
@@ -137,6 +139,25 @@ func dataApiHandler(body interface{}) (interface{}, string) {
 	return response, ""
 }
 
+func fromCache(sensor *appSensor) *appSensor {
+	for _, s := range cache {
+		if (sensor.Device == s.Device) && (sensor.Type == s.Type) && (sensor.Index == s.Index) && (sensor.Measure == s.Measure) {
+			return s
+		}
+	}
+	return nil
+}
+
+func toCache(sensor *appSensor) {
+	s := fromCache(sensor)
+	if s == nil {
+		cache = append(cache, sensor)
+		s = sensor
+	}
+	s.Value = sensor.Value
+	s.Timestamp = sensor.Timestamp
+}
+
 func latestApiHandler(body interface{}) (interface{}, string) {
 	sensorsBody, ok := body.(*appSensors)
 	if !ok {
@@ -144,14 +165,21 @@ func latestApiHandler(body interface{}) (interface{}, string) {
 	}
 	for idx, _ := range sensorsBody.Sensors {
 		sensor := &sensorsBody.Sensors[idx]
-		value, time, err := dbProvider.LatestMeasure(sensor.Device, sensor.Type, sensor.Index, sensor.Measure)
-		if err != nil {
-			log.Printf("Failed to load data: %v", err)
-			return nil, "DB error"
+		s := fromCache(sensor)
+		if s == nil || sensorsBody.Actual {
+			value, time, err := dbProvider.LatestMeasure(sensor.Device, sensor.Type, sensor.Index, sensor.Measure)
+			if err != nil {
+				log.Printf("Failed to load data: %v", err)
+				return nil, "DB error"
+			}
+			sensor.Value = value
+			sensor.Timestamp = time.Unix() * 1000
+			toCache(sensor)
+			// log.Printf("Data loaded: %v %v", value, time.Unix())
+		} else {
+			sensor.Value = s.Value
+			sensor.Timestamp = s.Timestamp
 		}
-		// log.Printf("Data loaded: %v %v", value, time.Unix())
-		sensor.Value = value
-		sensor.Timestamp = time.Unix() * 1000
 	}
 	return sensorsBody, ""
 }
@@ -311,6 +339,7 @@ func setupStatic() {
 
 func StartServer(conf data.HashMap, db *data.DBProvider) {
 	dbProvider = db
+	cache = []*appSensor{}
 	config = conf
 	setupStatic()
 	http.HandleFunc("/api/config", addApiCall(func() interface{} {

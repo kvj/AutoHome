@@ -346,7 +346,7 @@ class AppController
       icon: 'circle-o-notch'
       target: menuTarget
       handler: =>
-        networkChangeHandler()
+        networkChangeHandler('Click')
     )
     $(document).ajaxStart(=>
       networkBtn.$('i').addClass('fa-spin')
@@ -362,7 +362,7 @@ class AppController
     refreshID = null
     forceRefresh = @storage.get(@KEY_NET_FORCE, 'bool', no)
     pollingNow = no
-    networkChangeHandler = (reason) =>
+    networkChangeHandler = (reason, actual = yes) =>
       # log 'networkChangeHandler', navigator.onLine, document[propName]
       if refreshID
         clearTimeout(refreshID)
@@ -372,7 +372,7 @@ class AppController
         # log 'Autorefresh start', reason
         if pollingNow then return
         pollingNow = yes
-        @pollData().always(=>
+        return @pollData(actual).always(=>
           pollingNow = no
           # log 'Autorefresh finish'
           refreshID = setTimeout(=>
@@ -381,6 +381,7 @@ class AppController
         )
       else
         networkBtn.almostHide(no)
+        return Q(true)
     $(window).on('online', =>
       networkChangeHandler('Online')
     ).on('offline', =>
@@ -390,7 +391,9 @@ class AppController
       networkChangeHandler('Visibility')
     )
     setTimeout(=>
-      networkChangeHandler('Startup')
+      networkChangeHandler('Startup cached', no).then(=>
+        networkChangeHandler('Startup actual')
+      )
     , 1000)
     sse = @api.makeSSE(
       open: =>
@@ -587,9 +590,10 @@ class AppController
       return data
     , @onError)
 
-  fetchLatest: (sensors) ->
+  fetchLatest: (sensors, actual = no) ->
     obj =
       sensors: []
+      actual: actual
     for item in sensors
       obj.sensors.push(
         device: item.device
@@ -609,28 +613,12 @@ class AppController
     for sensor in @sensors
       sensor.redraw()
 
-  pollData: () ->
+  pollData: (actual) ->
     promises = []
     for sensor in @sensors
-      p = sensor.refresh()
+      p = sensor.refresh(actual)
       if p then promises.push(p)
     return Q.all(promises)
-    obj =
-      sensors: []
-    for item in @listeners
-      obj.sensors.push(
-        device: item.config.device
-        type: item.config.type
-        index: item.config.index
-        measure: item.config.measure
-      )
-    return @api.call('latest',
-      body: obj
-    ).then((data) =>
-      # log 'Data:', data
-      for sensor in data.sensors
-        @emitDataEvent(sensor)
-    , @onError)
 
 $(document).ready ->
   log 'App started'
