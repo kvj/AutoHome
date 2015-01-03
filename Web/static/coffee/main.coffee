@@ -26,6 +26,8 @@ parseQuery = (query) ->
 
 class DetailsDialog
 
+  AUTO_CLOSE_TIMEOUT: 180
+
   INTERVALS: [
     days: 1
     title: '1D'
@@ -79,7 +81,7 @@ class DetailsDialog
         text: btn.title
         target: idiv
         handler: =>
-          log 'Change interval:', btn.days
+          # log 'Change interval:', btn.days
           @changeInterval(btn.days)
       )
     for item in @INTERVALS
@@ -103,18 +105,30 @@ class DetailsDialog
       handler: =>
         @moveDate(1)
     )
+    @scheduleAutoClose()
     @config.app.makeButton(
       icon: 'close'
       target: ndiv
       handler: =>
-        @visible = no
-        div.addClass('no-display')
+        @closeDialog()
     )
     @visible = yes
     @now = new Date().getTime()
     div.removeClass('no-display')
     @config.onCreate(sdiv) if @config.onCreate
     @moveDate(0)
+  
+  closeDialog: ->
+    @visible = no
+    div = $('#main-details')
+    div.addClass('no-display')
+    clearTimeout(@closeTimeoutID)
+
+  scheduleAutoClose: ->
+    clearTimeout(@closeTimeoutID) if @closeTimeoutID
+    @closeTimeoutID = setTimeout(=>
+      @closeDialog()
+    , 1000 * @AUTO_CLOSE_TIMEOUT)
 
   addSurface: (d) ->
     div = $('#main-details')
@@ -133,6 +147,7 @@ class DetailsDialog
       @from = new Date(@to.getTime())
       @from.setDate(@from.getDate()-@days)
     @config.onRender() if @config.onRender
+    @scheduleAutoClose()
 
   moveDate: (dir = 0) ->
     switch dir
@@ -149,8 +164,9 @@ class DetailsDialog
       when -1
         @to.setDate(@to.getDate()-@days)
         @from.setDate(@from.getDate()-@days)
-    log 'moveDate', @from, @to
+    # log 'moveDate', @from, @to
     @config.onRender() if @config.onRender
+    @scheduleAutoClose()
 
 class Storage
 
@@ -590,7 +606,7 @@ class AppController
       return data
     , @onError)
 
-  fetchLatest: (sensors, actual = no) ->
+  fetchLatest: (sensors, actual = yes) ->
     obj =
       sensors: []
       actual: actual
@@ -613,7 +629,7 @@ class AppController
     for sensor in @sensors
       sensor.redraw()
 
-  pollData: (actual) ->
+  pollData: (actual = yes) ->
     promises = []
     for sensor in @sensors
       p = sensor.refresh(actual)
