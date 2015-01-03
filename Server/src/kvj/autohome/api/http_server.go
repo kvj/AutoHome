@@ -166,7 +166,7 @@ func latestApiHandler(body interface{}) (interface{}, string) {
 	for idx, _ := range sensorsBody.Sensors {
 		sensor := &sensorsBody.Sensors[idx]
 		s := fromCache(sensor)
-		if s == nil || sensorsBody.Actual {
+		if (s == nil) || sensorsBody.Actual {
 			value, time, err := dbProvider.LatestMeasure(sensor.Device, sensor.Type, sensor.Index, sensor.Measure)
 			if err != nil {
 				log.Printf("Failed to load data: %v", err)
@@ -295,6 +295,9 @@ func addApiCall(factory jsonFactory, handler apiHandler) httpHandler {
 			http.Error(w, "Request error", 500)
 			return
 		}
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
 		bodyOut, errStr := handler(body)
 		if errStr != "" {
 			log.Printf("Internal error: %s", errStr)
