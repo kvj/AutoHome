@@ -91,7 +91,7 @@ func (self *DBProvider) DataForPeriod(table int, device, _type, index, measure i
 	if table == TypeForecast {
 		table_name = "forecast"
 	}
-	rows, err := self.db.Query("select value, at from "+table_name+" where device=$1 and type=$2 and sensor=$3 and measure=$4 and at between $5 and $6 order by at", device, _type, index, measure, time.Unix(from/1000, 0), time.Unix(to/1000, 0))
+	rows, err := self.db.Query("select value, at from "+table_name+" where device=$1 and type=$2 and sensor=$3 and measure=$4 and at between $5 and $6 order by id", device, _type, index, measure, time.Unix(from/1000, 0), time.Unix(to/1000, 0))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -114,7 +114,7 @@ func (self *DBProvider) DataForPeriod(table int, device, _type, index, measure i
 }
 
 func (self *DBProvider) LatestMeasure(device, _type, index, measure int) (float64, *time.Time, error) {
-	rows, err := self.db.Query("select value, at from measure where device=$1 and type=$2 and sensor=$3 and measure=$4 order by at desc limit 1", device, _type, index, measure)
+	rows, err := self.db.Query("select value, at from measure where device=$1 and type=$2 and sensor=$3 and measure=$4 order by id desc limit 1", device, _type, index, measure)
 	if err != nil {
 		return 0, nil, err
 	}
