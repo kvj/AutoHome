@@ -37,7 +37,7 @@ func OpenDB(config HashMap) *DBProvider {
 	}
 	reportProblem := func(ev pq.ListenerEventType, err error) {
 		if err != nil {
-			log.Printf("Listener error: %v", err)
+			log.Printf("Listener error: %v", err.Error())
 		}
 	}
 	listener := pq.NewListener(url, 10*time.Second, time.Hour, reportProblem)
@@ -58,6 +58,12 @@ func OpenDB(config HashMap) *DBProvider {
 	go func() {
 		for {
 			select {
+			case <-time.Tick(2 * time.Minute):
+				pingErr := listener.Ping()
+				if pingErr != nil {
+					log.Printf("Ping error: %v", pingErr)
+				}
+				continue
 			case n := <-listener.Notify:
 				if n.Channel == "sensor" {
 					provider.SensorChannel <- n.Extra
@@ -124,6 +130,23 @@ func (self *DBProvider) LatestMeasure(device, _type, index, measure int) (float6
 	if !rows.Next() {
 		log.Printf("No data found:", device, _type, index, measure)
 		return value, &time, nil // No data
+	}
+	err = rows.Scan(&value, &time)
+	// log.Printf("Data found:", device, _type, index, measure, value, time)
+	return value, &time, err // Data found
+}
+
+func (self *DBProvider) ClosestForecast(device, _type, index, measure int, from int64) (float64, *time.Time, error) {
+	rows, err := self.db.Query("select value, at from forecast where device=$1 and type=$2 and sensor=$3 and measure=$4 and at<$5 order by at desc limit 1", device, _type, index, measure, time.Unix(from/1000, 0))
+	if err != nil {
+		return 0, nil, err
+	}
+	var value float64
+	var time time.Time
+	defer rows.Close()
+	if !rows.Next() {
+		log.Printf("No data found:", device, _type, index, measure)
+		return -1, nil, nil // No data
 	}
 	err = rows.Scan(&value, &time)
 	// log.Printf("Data found:", device, _type, index, measure, value, time)

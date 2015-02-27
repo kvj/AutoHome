@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"kvj/autohome/data"
 	"kvj/autohome/model"
 	"log"
 	"net/http"
@@ -16,6 +17,9 @@ const (
 	wundergroundKey  = "36db8709d42795ff"
 	wundergroundType = 20
 )
+
+// var forecastHours = [...]int{3, 6}
+var forecastHours = [...]int{3, 6, 12, 24, 48}
 
 type Crawler struct {
 	queue    model.MMChannel
@@ -92,6 +96,26 @@ func icon2Code(icon string) int {
 		return 7
 	}
 	return 0
+}
+
+func code2Text(code int) string {
+	switch code {
+	case 6:
+		return "Snow"
+	case 4:
+		return "Rain"
+	case 5:
+		return "T-Storms"
+	case 1:
+		return "Clear"
+	case 3:
+		return "Cloudy"
+	case 2:
+		return "P. Cloudy"
+	case 7:
+		return "Fog"
+	}
+	return "???"
 }
 
 func str2Float(value string) float64 {
@@ -237,4 +261,156 @@ func StartWeatherCrawler(index int, location string) (model.MMChannel, model.MMs
 		}
 	}()
 	return crawler.queue, crawler.forecast
+}
+
+type WeatherInfo struct {
+	Title    string
+	Forecast []string
+}
+
+type WeatherChan chan *WeatherInfo
+
+type InfoMaker struct {
+	channel WeatherChan
+	device  int
+	sensor  int
+	db      *data.DBProvider
+}
+
+func formatTemp(val float64) string {
+	if float64(int(val)) != val {
+		return fmt.Sprintf("%.1fC", val)
+	}
+	return fmt.Sprintf("%.fC", val)
+}
+
+func formatWindDirection(val float64) string {
+	step := 22.5
+	directions := []string{"N", "NE", "E", "SE", "S", "SW", "W", "NW", "N"}
+	value := step
+	idx := 1
+	for value < 360 {
+		if val >= value && val < value+2*step {
+			return directions[idx]
+		}
+		value += 2 * step
+		idx++
+	}
+	return directions[0]
+}
+
+func (self *InfoMaker) oneLatest(measure int) (float64, error) {
+	// Get one latest measure
+	value, _, err := self.db.LatestMeasure(self.device, wundergroundType, self.sensor, measure)
+	return value, err
+}
+
+func (self *InfoMaker) oneForecast(measure int, hours int) (float64, error) {
+	// Get one latest measure
+	msec := time.Now().Add(time.Duration(hours)*time.Hour).Unix() * 1000
+	value, _, err := self.db.ClosestForecast(self.device, wundergroundType, self.sensor, measure, msec)
+	if err != nil {
+		return value, err
+	}
+	// log.Printf("oneForecast %v %v", hours, time.Local())
+	return value, err
+}
+
+func (self *InfoMaker) makeLatest() (string, error) {
+	temp, err := self.oneLatest(1)
+	if nil != err {
+		log.Printf("Failed to get value: %v", err)
+		return "", err
+	}
+	cond, err := self.oneLatest(0)
+	if nil != err {
+		log.Printf("Failed to get value: %v", err)
+		return "", err
+	}
+	wind, err := self.oneLatest(6)
+	if nil != err {
+		log.Printf("Failed to get value: %v", err)
+		return "", err
+	}
+	wdir, err := self.oneLatest(5)
+	if nil != err {
+		log.Printf("Failed to get value: %v", err)
+		return "", err
+	}
+	hum, err := self.oneLatest(3)
+	if nil != err {
+		log.Printf("Failed to get value: %v", err)
+		return "", err
+	}
+	result := fmt.Sprintf("%s %s %v %v %.f%%", formatTemp(temp), code2Text(int(cond)), formatWindDirection(wdir), wind, hum)
+	return result, nil
+}
+
+func (self *InfoMaker) makeForecastLine(hours int) (string, error) {
+	temp, err := self.oneForecast(1, hours)
+	if nil != err {
+		log.Printf("Failed to get value: %v", err)
+		return "", err
+	}
+	cond, err := self.oneForecast(0, hours)
+	if nil != err {
+		log.Printf("Failed to get value: %v", err)
+		return "", err
+	}
+	wind, err := self.oneForecast(6, hours)
+	if nil != err {
+		log.Printf("Failed to get value: %v", err)
+		return "", err
+	}
+	wdir, err := self.oneForecast(5, hours)
+	if nil != err {
+		log.Printf("Failed to get value: %v", err)
+		return "", err
+	}
+	rain, err := self.oneForecast(9, hours)
+	if nil != err {
+		log.Printf("Failed to get value: %v", err)
+		return "", err
+	}
+	result := fmt.Sprintf("%dH: %s %s %.f%% %v %v", hours, formatTemp(temp), code2Text(int(cond)), rain, formatWindDirection(wdir), wind)
+	return result, nil
+}
+
+func (self *InfoMaker) Make() {
+	latest, err := self.makeLatest()
+	if nil != err {
+		log.Printf("Error making latest weather info: %v", err)
+		return
+	}
+	// log.Printf("Weather info message %v", latest)
+	forecastLines := make([]string, len(forecastHours))
+	for i, hours := range forecastHours {
+		line, err := self.makeForecastLine(hours)
+		if nil != err {
+			log.Printf("Error making forecast line: %v", err)
+			return
+		}
+		// log.Printf("Forecast: %v %v", i, line)
+		forecastLines[i] = line
+	}
+	self.channel <- &WeatherInfo{
+		Title:    latest,
+		Forecast: forecastLines,
+	}
+}
+
+func StartWeatherNotifier(db *data.DBProvider, device int, sensor int, minutes int) WeatherChan {
+	maker := &InfoMaker{
+		device: device,
+		sensor: sensor,
+		db:     db,
+	}
+	maker.channel = make(WeatherChan)
+	go func() {
+		maker.Make()
+		for _ = range time.Tick(time.Duration(minutes) * time.Minute) {
+			maker.Make()
+		}
+	}()
+	return maker.channel
 }

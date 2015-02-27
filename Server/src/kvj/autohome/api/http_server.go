@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"kvj/autohome/data"
-	//"kvj/autohome/model"
+	"kvj/autohome/internet"
+	// "kvj/autohome/model"
 	"log"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -76,9 +78,16 @@ type appSeriesResponse struct {
 	Series [][]appSensor `json:"series"`
 }
 
+type pluginConfig struct {
+	Name   string          `json:"name"`
+	Config json.RawMessage `json:"config,omitempty"`
+}
+
 type appConfig struct {
-	Keys   []string    `json:"keys"`
-	Layout []appLayout `json:"layout"`
+	Keys        []string       `json:"keys"`
+	Layout      []appLayout    `json:"layout"`
+	Plugins     []pluginConfig `json:"plugins,omitempty"`
+	ParseAPIKey string         `json:"parseAPIKey"`
 }
 
 type pushMessage struct {
@@ -187,6 +196,11 @@ func latestApiHandler(body interface{}) (interface{}, string) {
 type jsonFactory func() interface{}
 type apiHandler func(body interface{}) (interface{}, string)
 type httpHandler func(w http.ResponseWriter, r *http.Request)
+type pluginHandler func(config json.RawMessage)
+
+type pluginDefinition struct {
+	configHandler pluginHandler
+}
 
 func checkKey(conf *appConfig, r *http.Request) (string, bool) {
 	key := r.Header.Get("X-Key")
@@ -268,11 +282,6 @@ func sseHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func sseThread() {
-	go func() {
-	}()
-}
-
 func addApiCall(factory jsonFactory, handler apiHandler) httpHandler {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conf := loadConfig()
@@ -340,10 +349,70 @@ func setupStatic() {
 	})
 }
 
+type pluginsMap map[string]*pluginDefinition
+
+var plugins pluginsMap
+
+type weatherPluginConfig struct {
+	Interval  int      `json:"interval"`
+	Device    int      `json:"device"`
+	Sensor    int      `json:"sensor"`
+	Widget    string   `json:"widget"`
+	ParseKeys []string `json:"parseDestination,omitEmpty"`
+}
+
+type weatherPushMessage struct {
+	Name    string `json:"name"`
+	Title   string `json:"title"`
+	Message string `json:"message"`
+}
+
+func weatherPlugin(configData json.RawMessage) {
+	appConf := loadConfig()
+	conf := &weatherPluginConfig{}
+	err := json.Unmarshal(configData, conf)
+	if err != nil {
+		log.Fatal("Weather config parse failed: %v", err)
+	}
+	log.Printf("Configuring weather plugin", conf)
+	channel := internet.StartWeatherNotifier(dbProvider, conf.Device, conf.Sensor, conf.Interval)
+	go func() {
+		for message := range channel {
+			log.Printf("New Message:", message)
+			push := weatherPushMessage{
+				Name:    conf.Widget,
+				Title:   message.Title,
+				Message: strings.Join(message.Forecast, "\n"),
+			}
+			pushError := internet.SendParsePush(push, appConf.ParseAPIKey, conf.ParseKeys)
+			if nil != pushError {
+				log.Printf("Push error: %v", pushError)
+			}
+		}
+	}()
+}
+
+func initPlugins() {
+	plugins = make(pluginsMap)
+	plugins["weather"] = &pluginDefinition{
+		configHandler: weatherPlugin,
+	}
+	conf := loadConfig()
+	for _, c := range conf.Plugins {
+		p, present := plugins[c.Name]
+		if !present {
+			log.Printf("Plugin not configured: %v", c.Name)
+			continue
+		}
+		p.configHandler(c.Config)
+	}
+}
+
 func StartServer(conf data.HashMap, db *data.DBProvider) {
 	dbProvider = db
 	cache = []*appSensor{}
 	config = conf
+	initPlugins()
 	setupStatic()
 	http.HandleFunc("/api/config", addApiCall(func() interface{} {
 		return &jsonEmpty{}
@@ -355,7 +424,6 @@ func StartServer(conf data.HashMap, db *data.DBProvider) {
 		return &appSeriesRequest{}
 	}, dataApiHandler))
 	http.HandleFunc("/api/link", sseHandler)
-	sseThread()
 	panic(http.ListenAndServe(fmt.Sprintf(":%s", config["port"]), nil))
 	// log.Printf("HTTP server started")
 }

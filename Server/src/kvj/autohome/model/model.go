@@ -23,3 +23,15 @@ type MeasureMessages []*MeasureMessage
 
 type MMChannel chan *MeasureMessage
 type MMsChannel chan MeasureMessages
+
+type stringError struct {
+	s string
+}
+
+func (e *stringError) Error() string {
+	return e.s
+}
+
+func NewStringError(text string) error {
+	return &stringError{text}
+}
