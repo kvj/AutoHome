@@ -33,5 +33,8 @@ func main() {
 	})
 	mm, mms := internet.StartWeatherCrawler(0, "locid:JATY0021")
 	talker.AddMessageProvider(10, mm, mms)
+	go func() {
+		internet.StartCameraProxy(config)
+	}()
 	talker.Start()
 }

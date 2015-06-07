@@ -211,6 +211,9 @@ func MakeConfig() HashMap {
 	var dbuserVar = flag.String("dbuser", "arduino", "DB Username")
 	var dbpassVar = flag.String("dbpass", "arduino", "DB Password")
 	var portVar = flag.String("port", "9100", "HTTP port")
+	var cameraPortVar = flag.String("camera-port", "9101", "HTTP camera port")
+	var cameraURLVar = flag.String("camera-url", "rtsp://%s:554/user=admin&password=&channel=1&stream=0.sdp", "HTTP camera port")
+	var ffmpegVar = flag.String("ffmpeg", "ffmpeg", "Path to ffmpeg")
 	var pathVar = flag.String("path", "../Web", "Data folder")
 	var fileVar = flag.String("file", "config.json", "Configuration file")
 	flag.Parse()
@@ -226,5 +229,8 @@ func MakeConfig() HashMap {
 	result["port"] = *portVar
 	result["path"] = *pathVar
 	result["config"] = *fileVar
+	result["cameraPort"] = *cameraPortVar
+	result["cameraUrl"] = *cameraURLVar
+	result["ffmpeg"] = *ffmpegVar
 	return result
 }
