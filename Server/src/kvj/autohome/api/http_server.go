@@ -95,6 +95,11 @@ type pushMessage struct {
 	Data json.RawMessage `json:"data"`
 }
 
+type cameraSnapshot struct {
+	Type string `json:"type"`
+	Host string `json:"host"`
+}
+
 func loadConfig() *appConfig {
 	folder := dataFolder()
 	file, err := os.Open(path.Join(folder, config["config"]))
@@ -195,6 +200,7 @@ func latestApiHandler(body interface{}) (interface{}, string) {
 
 type jsonFactory func() interface{}
 type apiHandler func(body interface{}) (interface{}, string)
+type apiRawHandler func(w http.ResponseWriter, body interface{}) string
 type httpHandler func(w http.ResponseWriter, r *http.Request)
 type pluginHandler func(config json.RawMessage)
 
@@ -282,7 +288,27 @@ func sseHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func addApiCall(factory jsonFactory, handler apiHandler) httpHandler {
+func cameraSnapshotHandler(w http.ResponseWriter, body interface{}) string {
+	_body, _ := body.(*cameraSnapshot)
+	server := fmt.Sprintf("%s:9101", config["dbhost"])
+	data_type := fmt.Sprintf("%s_snapshot", _body.Type)
+	host := _body.Host
+	code, err := Download(server, data_type, host)
+	if err != "" {
+		log.Printf("Snapshot error: %v", err)
+		return err
+	}
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.Header().Set("X-Camera-File", code)
+	err = WriteSaved(code, w)
+	if err != "" {
+		log.Printf("Snapshot read failure: %v", err)
+		return err
+	}
+	return ""
+}
+
+func addApiCallRaw(factory jsonFactory, handler apiRawHandler) httpHandler {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conf := loadConfig()
 		key, valid := checkKey(conf, r)
@@ -307,21 +333,32 @@ func addApiCall(factory jsonFactory, handler apiHandler) httpHandler {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Expires", "0")
-		bodyOut, errStr := handler(body)
+		errStr := handler(w, body)
 		if errStr != "" {
 			log.Printf("Internal error: %s", errStr)
 			http.Error(w, errStr, 403)
 			return
 		}
+	}
+}
+
+func addApiCall(factory jsonFactory, handler apiHandler) httpHandler {
+	api_handler := func(w http.ResponseWriter, body interface{}) string {
+		bodyOut, errStr := handler(body)
+		if errStr != "" {
+			return errStr
+		}
 		bodyOutBytes, err := json.Marshal(bodyOut)
 		if err != nil {
 			log.Printf("Body sending failed: %v", err)
 			http.Error(w, "Response error", 500)
-			return
+			return ""
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Write(bodyOutBytes)
+		return ""
 	}
+	return addApiCallRaw(factory, api_handler)
 }
 
 func setupStatic() {
@@ -394,9 +431,9 @@ func weatherPlugin(configData json.RawMessage) {
 
 func initPlugins() {
 	plugins = make(pluginsMap)
-	plugins["weather"] = &pluginDefinition{
-		configHandler: weatherPlugin,
-	}
+	// plugins["weather"] = &pluginDefinition{
+	//	configHandler: weatherPlugin,
+	//}
 	conf := loadConfig()
 	for _, c := range conf.Plugins {
 		p, present := plugins[c.Name]
@@ -423,7 +460,11 @@ func StartServer(conf data.HashMap, db *data.DBProvider) {
 	http.HandleFunc("/api/data", addApiCall(func() interface{} {
 		return &appSeriesRequest{}
 	}, dataApiHandler))
+	http.HandleFunc("/api/camera/snapshot", addApiCallRaw(func() interface{} {
+		return &cameraSnapshot{}
+	}, cameraSnapshotHandler))
 	http.HandleFunc("/api/link", sseHandler)
+	StartTempFileWatcher(10, 1)
 	panic(http.ListenAndServe(fmt.Sprintf(":%s", config["port"]), nil))
 	// log.Printf("HTTP server started")
 }

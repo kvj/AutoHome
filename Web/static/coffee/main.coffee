@@ -24,6 +24,69 @@ parseQuery = (query) ->
       result[part] = yes
   return result
 
+
+class Dialog
+  
+  AUTO_CLOSE_TIMEOUT: 180
+
+  constructor: (@config) ->
+    @loading = 0
+    @closeInterval = if @config.autoClose >= 0 then @config.autoClose else @AUTO_CLOSE_TIMEOUT
+
+  isLoading: ->
+    return @loading > 0
+  isVisible: ->
+    return @visible
+
+  toggleLoading: (stop = no) ->
+    if stop
+      @loading--
+    else
+      @loading++
+    if @loading is 1
+      $('#main-details').find('.detail-indicator').removeClass('no-display')
+    if @loading is 0
+      $('#main-details').find('.detail-indicator').addClass('no-display')
+
+  showUI: () ->
+    div = $('#main-details')
+    sdiv = div.find('.detail-surface').empty()
+    idiv = div.find('.detail-interval').empty()
+    ndiv = div.find('.detail-navigation').empty()
+    @config.app.makeButton(
+      icon: 'close'
+      target: ndiv
+      handler: =>
+        @closeDialog()
+    )
+    @visible = yes
+    div.removeClass('no-display')
+    @config.onCreate(sdiv, ndiv) if @config.onCreate
+    @scheduleAutoClose()
+  
+  closeDialog: ->
+    @visible = no
+    div = $('#main-details')
+    div.addClass('no-display')
+    clearTimeout(@closeTimeoutID) if @closeTimeoutID
+    @config.onClose() if @config.onClose
+
+  scheduleAutoClose: ->
+    clearTimeout(@closeTimeoutID) if @closeTimeoutID
+    if @closeInterval is 0 then return
+    @closeTimeoutID = setTimeout(=>
+      @closeDialog()
+    , 1000 * @closeInterval)
+
+  addSurface: (d) ->
+    div = $('#main-details')
+    sdiv = div.find('.detail-surface')
+    sdiv.append(d)
+    return {
+      div: d
+    }
+
+
 class DetailsDialog
 
   AUTO_CLOSE_TIMEOUT: 180
@@ -191,6 +254,26 @@ class Storage
       when 'bool' then val = if value then 'true' else 'false'
     localStorage[name] = val
 
+$.ajaxTransport('raw', (opt, orig_opt, jqxhr) ->
+  return {
+    send: (headers, callback) ->
+      xhr = new XMLHttpRequest()
+      dataType = opt.responseType ? 'blob'
+      xhr.addEventListener('load', ->
+        data = {}
+        data[opt.dataType] = xhr.response
+        callback(xhr.status, xhr.statusText, data, xhr.getAllResponseHeaders())
+      )
+      xhr.open(opt.type, opt.url, yes)
+      for key, value of headers
+        xhr.setRequestHeader(key, value)
+      xhr.responseType = dataType
+      xhr.send(opt.data)
+    abort: ->
+      jqxhr.abort()
+  }
+)
+
 class APIController
 
   STORAGE_KEY: 'api_key'
@@ -215,16 +298,17 @@ class APIController
       dataIn = JSON.stringify(body)
     xhr = (key = @key) =>
       reqP = Q()
-      $.ajax("#{@base}api/#{path}",
-        contentType: 'application/json; charser=utf-8'
+      xhrConfig =
+        contentType: 'application/json; charset=utf-8'
         data: dataIn
         dataType: config.dataOut ? 'json'
+        processData: no
         type: 'POST'
         headers:
           'X-Key': key
-        success: (data) ->
-          reqP.resolve(data)
+        success: (data, status, xhr) ->
           p.resolve(data)
+          reqP.resolve(data)
         error: (err) ->
           log 'Api Error:', err
           if err.status is 401
@@ -235,7 +319,7 @@ class APIController
             errorStr = err.responseText
           p.reject(errorStr)
           reqP.reject(errorStr)
-      )
+      $.ajax("#{@base}api/#{path}", xhrConfig)
       return reqP
     xhr()
     return p
@@ -379,6 +463,7 @@ class AppController
     forceRefresh = @storage.get(@KEY_NET_FORCE, 'bool', no)
     pollingNow = no
     networkChangeHandler = (reason, actual = yes) =>
+      # if actual then return
       # log 'networkChangeHandler', navigator.onLine, document[propName]
       if refreshID
         clearTimeout(refreshID)
@@ -446,7 +531,7 @@ class AppController
 
   makeUI: (config) ->
     size = $(window)
-    @showError "Size: #{size.width()}x#{size.height()}"
+    # @showError "Size: #{size.width()}x#{size.height()}"
     roomTarget = $('#main-surface')
     menuTarget = $('#main-menu')
     for item in config.layout ? []
@@ -498,7 +583,10 @@ class AppController
       config.handler() if config.handler
     )
     if config.target
-      config.target.append(btn)
+      if config.prepend
+        config.target.prepend(btn)
+      else
+        config.target.append(btn)
     BTN_CLASSES = ['btn-success', 'btn-failure']
     return {
       text: (text) =>
@@ -556,6 +644,9 @@ class AppController
       addDetail: (name, detail) =>
         details[name] = detail
       showDetail: (name) =>
+        for id, detail of details
+          if detail.visible
+            detail.closeDialog?()
         detail = details[name]
         detail.showUI() if detail
 

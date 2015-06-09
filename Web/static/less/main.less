@@ -316,6 +316,7 @@ body {
 .detail-surface {
     .flex(1);
     .flex_vertical();
+    .flex_align(center);
 }
 
 .surface-graph {
@@ -324,9 +325,17 @@ body {
 
 .surface-item {
     position: relative;
+    text-align: center;
+    overflow: visible;
     .flex_vertical();
     .flex_align(center);
     .flex_cross_align(center);
+}
+
+.surface-img {
+    margin: 10px;
+    border: 1px solid #dddddd;
+    padding: 5px;
 }
 
 .detail-interval {

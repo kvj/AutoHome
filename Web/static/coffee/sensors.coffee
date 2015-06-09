@@ -404,3 +404,91 @@ class DetailGraphDisplay extends SensorDisplay
   show: (value) ->
 
 registerSensor('graph', DetailGraphDisplay)
+
+fitImage = (cont, img) ->
+  cw = cont.width()
+  ch = cont.height()
+  iw = img.outerWidth()
+  ih = img.outerHeight()
+  if iw is 0 or ih is 0
+    return no
+  if iw > cw or ih > ch
+    mul = Math.min(cw / iw, ch / ih)
+    img.outerWidth(Math.floor(iw * mul))
+    img.outerHeight(Math.floor(ih * mul))
+    return yes
+  return no
+
+class CameraDisplay extends SensorDisplay
+
+  initialize: ->
+
+    autoRefresh = no
+
+    refresh = (div) =>
+      if control.isLoading() or not control.isVisible()
+        return
+      control.toggleLoading()
+      control.scheduleAutoClose()
+      return @app.api.call('camera/snapshot',
+        body:
+          host: @extra.host
+          type: @extra.type
+        dataOut: 'raw'
+      ).then((data) =>
+        control.toggleLoading(yes)
+        if not control.isVisible() then return # Already hidden
+        div.empty()
+        dataDiv = $('<div class="surface-item"><img class="surface-img"></div>')
+        div.append(dataDiv)
+        dataDiv.find('img').on('load', =>
+          fitImage(div, dataDiv.find('img'))
+        ).attr('src', URL.createObjectURL(data))
+        setTimeout(=>
+          refresh(div) if autoRefresh
+        , 5000) if autoRefresh
+      , (error) =>
+        control.toggleLoading(yes)
+        @app.showError('Failure')
+      )
+
+    control = new Dialog(
+      app: @app
+      autoClose: 60
+      onCreate: (div, ndiv) =>
+        @app.makeButton(
+          target: ndiv
+          prepend: yes
+          icon: 'refresh'
+          handler: =>
+            refresh(div)
+
+        )
+        runBtn = @app.makeButton(
+          target: ndiv
+          prepend: yes
+          icon: 'play'
+          handler: =>
+            autoRefresh = not autoRefresh
+            if autoRefresh
+              refresh(div)
+            runBtn.setColor(if autoRefresh then 'success' else null)
+        )
+        refresh(div)
+    )
+    @room.addDetail(@extra.host, control)
+    cont = $('<span></span>')
+    @btn = @app.makeButton(
+      target: cont
+      icon: 'video-camera'
+      handler: =>
+        @room.showDetail(@extra.host)
+    )
+    return cont
+
+  refresh: (actual) ->
+    return undefined
+
+  show: (value) ->
+
+registerSensor('camera', CameraDisplay)
