@@ -3,7 +3,7 @@ package main
 import (
 	"kvj/autohome/api"
 	"kvj/autohome/data"
-	// "kvj/autohome/internet"
+	"kvj/autohome/internet"
 	"log"
 )
 
@@ -14,6 +14,6 @@ func main() {
 		return
 	}
 	db := data.OpenDB(config)
-	// _ = internet.StartWeatherNotifier(db, 10, 0)
+	_ = internet.StartWeatherNotifier(db, 10, 0, 60)
 	api.StartServer(config, db)
 }
