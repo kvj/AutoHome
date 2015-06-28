@@ -274,23 +274,42 @@ class InlineGraphDisplay extends SensorDisplay
 
   refresh: ->
     to = new Date().getTime()
-    from = to - 1 * 24 * 60 * 60 * 1000 # 3 days
-    return @app.fetchData(@config.data, from, to).then((data) =>
+    plus = (@extra.hours ? 24) * 60 * 60 * 1000
+    if @extra.forecast
+      from = to
+      to += plus
+    else
+      from = to - plus
+    return @app.fetchData(@config.data, from, to, @extra.forecast).then((data) =>
       series = []
       yaxes = []
       colors = []
       for data, i in data.series
-        [arr, min, max] = prepareSeries(data, yes)
-        series.push(
+        conf = @config.data[i]
+        [arr, min, max] = prepareSeries(data, not (conf.steps ? no))
+        item =
           data: arr
           yaxis: i+1
-        )
+        series.push(item)
+        if conf.fill
+          item.lines =
+            show: yes
+            steps: conf.steps
+            fill: yes
         gap = (max - min) / 2
+        if @extra.percent
+          gap = 0
+          min = 0
+          max = 100
         yaxes.push({
           min: min-gap
           max: max+gap
         })
-        colors.push(@COLORS[i % @COLORS.length])
+        if conf.color
+          col = COLORS[conf.color] ? COLORS.yellow
+          colors.push("rgb(#{col[0]}, #{col[1]}, #{col[2]})")
+        else
+          colors.push(@COLORS[i % @COLORS.length])
       @room.plot(series, colors, yaxes)
     )
 

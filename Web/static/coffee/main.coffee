@@ -488,9 +488,9 @@ class AppController
     ).on('offline', =>
       networkChangeHandler('Offline')
     )
-    $(document).on(eventName, =>
-      networkChangeHandler('Visibility')
-    )
+    #$(document).on(eventName, =>
+    #  networkChangeHandler('Visibility')
+    #)
     setTimeout(=>
       networkChangeHandler('Startup cached', no).then(=>
         networkChangeHandler('Startup actual')
