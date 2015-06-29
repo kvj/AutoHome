@@ -286,7 +286,8 @@ class InlineGraphDisplay extends SensorDisplay
       colors = []
       for data, i in data.series
         conf = @config.data[i]
-        [arr, min, max] = prepareSeries(data, not (conf.steps ? no))
+        noNormalize = conf.steps or conf.symbols
+        [arr, min, max] = prepareSeries(data, not noNormalize)
         item =
           data: arr
           yaxis: i+1
@@ -296,6 +297,8 @@ class InlineGraphDisplay extends SensorDisplay
             show: yes
             steps: conf.steps
             fill: yes
+        if conf.symbols
+          item.points = symbolPoints(arr, conf, WEATHER_DESIGN)
         gap = (max - min) / 2
         if @extra.percent
           gap = 0
@@ -327,6 +330,97 @@ COLORS =
   'grey':    [0x83, 0x94, 0x96]
   'black':   [0x00, 0x00, 0x00]
 
+color2Color = (name) ->
+  col = COLORS[name]
+  if not col then return '#000000'
+  return "##{col[0].toString(16)}#{col[1].toString(16)}#{col[2].toString(16)}".toUpperCase()
+
+# Generate symbols based on value and definition
+symbolPoints = (data, conf, design) ->
+  lastX = -1
+  lastY = -1
+  mapping = {}
+  for item, idx in data
+    # mapping[item[0]] = (idx % 7) + 1
+    mapping[item[0]] = item[1]
+    item[1] = 80 # middle line
+  spaceSq = (x, y) ->
+    return (lastX - x)*(lastX - x) + (lastY - y)*(lastY - y)
+  points =
+    show: yes
+    steps: yes
+    radius: 10
+    fill: yes
+    fillColor: '#FFFFFF'
+    symbol: (ctx, x, y, radius, shadow, rawx, rawy) =>
+      if shadow then return
+      if lastX>=0 and spaceSq(x, y)<2*radius*radius
+        return
+      else
+        lastX = x
+        lastY = y
+      value = mapping[rawx]
+      d = design[value]
+      if not value or not d
+        return
+      ctx.translate(x, y)
+      ctx.strokeStyle = color2Color(d.color)
+      switch d.shape
+        when 'circle'
+          mul = 0.5
+          ctx.beginPath()
+          ctx.arc(0, 0, radius * mul, 0, Math.PI * 2, no)
+          ctx.closePath()
+        when 'square'
+          ctx.rect(-radius * 0.5, -radius * 0.5, radius, radius)
+        when 'romb'
+          mul = 0.6
+          ctx.beginPath()
+          ctx.moveTo(-mul * radius, 0)
+          ctx.lineTo(0, mul * radius, 0)
+          ctx.lineTo(mul * radius, 0)
+          ctx.lineTo(0, -mul * radius, 0)
+          ctx.closePath()
+        when 'triangle2'
+          mul = 0.6
+          ctx.beginPath()
+          ctx.moveTo(-mul * radius, - mul * radius * 0.7)
+          ctx.lineTo(mul * radius, - mul* radius * 0.7)
+          ctx.lineTo(0, mul * radius * 0.8)
+          ctx.closePath()
+        when 'triangle'
+          mul = 0.6
+          ctx.beginPath()
+          ctx.moveTo(-mul * radius, mul * radius * 0.7)
+          ctx.lineTo(mul * radius, mul* radius * 0.7)
+          ctx.lineTo(0, - mul * radius * 0.8)
+          ctx.closePath()
+      ctx.translate(-x, -y)
+  return points
+
+WEATHER_DESIGN =
+  1:
+    shape: 'circle'
+    color: 'orange'
+  2:
+    shape: 'romb'
+    color: 'orange'
+  3:
+    shape: 'romb'
+    color: 'grey'
+  4:
+    shape: 'triangle2'
+    color: 'blue'
+  5:
+    shape: 'triangle'
+    color: 'orange'
+  6:
+    shape: 'triangle'
+    color: 'cyan'
+  7:
+    shape: 'square'
+    color: 'grey'
+
 class DetailGraphDisplay extends SensorDisplay
  
   initialize: ->
@@ -355,7 +449,8 @@ class DetailGraphDisplay extends SensorDisplay
               map[item.ts] = item.value
             sources[conf.source] = map
             continue
-          [arr, min, max] = prepareSeries(data, not (conf.steps ? no))
+          noNormalize = conf.steps or conf.symbols
+          [arr, min, max] = prepareSeries(data, not noNormalize)
           oneItem =
             data: arr
             yaxis: if conf.percent then 1 else yaxes.length+1
@@ -385,6 +480,9 @@ class DetailGraphDisplay extends SensorDisplay
                   ctx.lineTo(4*radius, 0)
                   ctx.arc(0, 0, radius, 0, Math.PI * 2, no)
                   ctx.restore()
+          else if conf.symbols
+            oneItem.yaxis = 1
+            oneItem.points = symbolPoints(arr, conf, WEATHER_DESIGN)
           else
             oneItem.lines =
               show: yes
@@ -474,7 +572,10 @@ class CameraDisplay extends SensorDisplay
     control = new Dialog(
       app: @app
       autoClose: 60
+      onClose: =>
+        autoRefresh = no
       onCreate: (div, ndiv) =>
+        autoRefresh = no
         @app.makeButton(
           target: ndiv
           prepend: yes
