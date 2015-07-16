@@ -431,9 +431,9 @@ func weatherPlugin(configData json.RawMessage) {
 
 func initPlugins() {
 	plugins = make(pluginsMap)
-	// plugins["weather"] = &pluginDefinition{
-	//	configHandler: weatherPlugin,
-	//}
+	plugins["weather"] = &pluginDefinition{
+		configHandler: weatherPlugin,
+	}
 	conf := loadConfig()
 	for _, c := range conf.Plugins {
 		p, present := plugins[c.Name]
