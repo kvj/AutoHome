@@ -445,11 +445,18 @@ func initPlugins() {
 	}
 }
 
+func startPushListener() {
+	appConf := loadConfig()
+	folder := dataFolder()
+	internet.StartPushListener(folder, appConf.ParseAPIKey)
+}
+
 func StartServer(conf data.HashMap, db *data.DBProvider) {
 	dbProvider = db
 	cache = []*appSensor{}
 	config = conf
 	initPlugins()
+	startPushListener()
 	setupStatic()
 	http.HandleFunc("/api/config", addApiCall(func() interface{} {
 		return &jsonEmpty{}

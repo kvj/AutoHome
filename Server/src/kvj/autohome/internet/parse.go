@@ -2,8 +2,10 @@ package internet
 
 import (
 	"bytes"
+	"code.google.com/p/go-uuid/uuid"
 	"encoding/json"
 	"io/ioutil"
+	"kvj/autohome/data"
 	"kvj/autohome/model"
 	"log"
 	"net/http"
@@ -21,6 +23,11 @@ type pushMessage struct {
 type outputMessage struct {
 	Result bool   `json:"result,omitempty"`
 	Error  string `json:"error,omitempty"`
+}
+
+type pushConfig struct {
+	Id   string `json:"id,omitempty"`
+	Last string `json:"last,omitempty"`
 }
 
 func SendParsePush(body interface{}, apiKey string, channels []string) error {
@@ -74,4 +81,22 @@ func SendParsePush(body interface{}, apiKey string, channels []string) error {
 		return model.NewStringError(obj.Error)
 	}
 	return nil
+}
+
+func StartPushListener(folder string, apiKey string) {
+	conf := &pushConfig{}
+	err := data.ReadJsonFromFile(folder, "push.json", conf)
+	if err != nil {
+		// Read failed -> try to make new install ID
+		conf.Last = "123"
+		err = data.WriteJsonToFile(folder, "push.json", conf) // Check can write or not
+		if err != nil {
+			log.Fatal("Config folder not writable")
+			return
+		}
+		log.Printf("Let's make new install ID")
+		// Make new installId
+	} else {
+		log.Printf("No action needed, load OK")
+	}
 }
