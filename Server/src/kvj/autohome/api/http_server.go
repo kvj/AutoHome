@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"kvj/autohome/data"
 	"kvj/autohome/internet"
-	// "kvj/autohome/model"
+	"kvj/autohome/model"
 	"log"
 	"net/http"
 	"os"
@@ -43,6 +43,14 @@ var mimes = map[string]string{
 }
 
 type jsonEmpty struct{}
+
+type incomingConfig struct {
+	Device  int    `json:"device"`
+	Type    int    `json:"type"`
+	Index   int    `json:"index"`
+	Measure int    `json:"measure"`
+	Name    string `json:"name"`
+}
 
 type appSensor struct {
 	Device    int             `json:"device"`
@@ -84,10 +92,11 @@ type pluginConfig struct {
 }
 
 type appConfig struct {
-	Keys        []string       `json:"keys"`
-	Layout      []appLayout    `json:"layout"`
-	Plugins     []pluginConfig `json:"plugins,omitempty"`
-	ParseAPIKey string         `json:"parseAPIKey"`
+	Keys        []string         `json:"keys"`
+	Layout      []appLayout      `json:"layout"`
+	Plugins     []pluginConfig   `json:"plugins,omitempty"`
+	ParseAPIKey string           `json:"parseAPIKey"`
+	Incoming    []incomingConfig `json:"gateway"`
 }
 
 type pushMessage struct {
@@ -227,6 +236,9 @@ func checkKey(conf *appConfig, r *http.Request) (string, bool) {
 	return key, true
 }
 
+var sseIndex = 0
+var sseHandlers map[int]chan string = make(map[int]chan string)
+
 func sseHandler(w http.ResponseWriter, r *http.Request) {
 	conf := loadConfig()
 	key, valid := checkKey(conf, r)
@@ -267,9 +279,13 @@ func sseHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	sendData("")
 	ticker := time.NewTicker(30 * time.Second)
+	sseIndex += 1
+	index := sseIndex
+	sensorChan := make(chan string)
+	sseHandlers[index] = sensorChan
 	for {
 		select {
-		case m := <-dbProvider.SensorChannel:
+		case m := <-sensorChan:
 			// log.Printf("Have sensor data: %v", m)
 			str, err := sendPushMessage(m, "sensor")
 			if err == nil {
@@ -282,6 +298,7 @@ func sseHandler(w http.ResponseWriter, r *http.Request) {
 				// Failed to write
 				log.Printf("Failed to ping: %v", err)
 				ticker.Stop()
+				delete(sseHandlers, index)
 				return
 			}
 		}
@@ -387,8 +404,10 @@ func setupStatic() {
 }
 
 type pluginsMap map[string]*pluginDefinition
+type gatewayMap map[string]incomingConfig
 
 var plugins pluginsMap
+var gatewayConfig gatewayMap
 
 type weatherPluginConfig struct {
 	Interval  int      `json:"interval"`
@@ -445,16 +464,104 @@ func initPlugins() {
 	}
 }
 
+type pushValue struct {
+	Value   float64 `json:"value"`
+	Measure int     `json:"measure"`
+}
+
+type pushIncomingMessage struct {
+	Type    string      `json:"type"`
+	Id      string      `json:"id"`
+	Value   float64     `json:"value,omitempty"`
+	Measure int         `json:"measure,omitempty"`
+	Values  []pushValue `json:"values,omitempty"`
+}
+
+func saveMeasures(id string, values []pushValue) {
+	// Save measures
+	conf, found := gatewayConfig[id]
+	if !found {
+		log.Printf("Unknown config: %s", id)
+		return
+	}
+	// log.Printf("saveMeasures:", values, id, conf)
+	arr := make([]*model.MeasureMessage, len(values))
+	for i, item := range values {
+		m := &model.MeasureMessage{
+			Type:    conf.Type,
+			Sensor:  conf.Index,
+			Value:   item.Value,
+			Measure: conf.Measure,
+			Time:    time.Now(),
+		}
+		if item.Measure > 0 {
+			m.Measure = item.Measure
+		}
+		arr[i] = m
+	}
+	err := dbProvider.AddMeasures(data.TypeMeasure, conf.Device, arr)
+	if err != nil {
+		log.Printf("Failed to add measures: %v", err)
+		return
+	}
+	// Notify
+	for _, item := range arr {
+		dbProvider.NotifyMeasure(&model.MeasureNotification{
+			Device:  conf.Device,
+			Type:    item.Type,
+			Index:   item.Sensor,
+			Measure: item.Measure,
+			Value:   item.Value,
+		})
+	}
+}
+
 func startPushListener() {
 	appConf := loadConfig()
+	gatewayConfig = make(gatewayMap)
+	for _, c := range appConf.Incoming {
+		gatewayConfig[c.Name] = c
+	}
 	folder := dataFolder()
-	internet.StartPushListener(folder, appConf.ParseAPIKey)
+	ch := internet.StartPushListener(folder, appConf.ParseAPIKey)
+	go func() {
+		for data := range ch {
+			message := &pushIncomingMessage{}
+			err := json.Unmarshal(data, message)
+			if err != nil {
+				log.Printf("Unrecognized message: %v %v", err, data)
+				continue
+			}
+			// log.Printf("Message:", message)
+			if message.Type == "measure" {
+				if len(message.Values) == 0 {
+					// Single mode
+					message.Values = []pushValue{pushValue{
+						Measure: message.Measure,
+						Value:   message.Value,
+					}}
+				}
+				saveMeasures(message.Id, message.Values)
+			}
+		}
+	}()
+}
+
+func startSensorListener() {
+	go func() {
+		for str := range dbProvider.SensorChannel {
+			for _, ch := range sseHandlers {
+				ch <- str
+			}
+		}
+	}()
 }
 
 func StartServer(conf data.HashMap, db *data.DBProvider) {
 	dbProvider = db
 	cache = []*appSensor{}
 	config = conf
+	startSensorListener()
 	initPlugins()
 	startPushListener()
 	setupStatic()

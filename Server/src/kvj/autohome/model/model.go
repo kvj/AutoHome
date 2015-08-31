@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -23,6 +24,7 @@ type MeasureMessages []*MeasureMessage
 
 type MMChannel chan *MeasureMessage
 type MMsChannel chan MeasureMessages
+type JsonChannel chan json.RawMessage
 
 type stringError struct {
 	s string

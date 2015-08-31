@@ -2,6 +2,7 @@ package data
 
 import (
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/lib/pq"
@@ -65,6 +66,7 @@ func OpenDB(config HashMap) *DBProvider {
 				}
 				continue
 			case n := <-listener.Notify:
+				// log.Printf("From channel:", n.Channel, n.Extra)
 				if n.Channel == "sensor" {
 					provider.SensorChannel <- n.Extra
 					continue
@@ -78,6 +80,17 @@ func OpenDB(config HashMap) *DBProvider {
 		}
 	}()
 	return provider
+}
+
+func (self *DBProvider) NotifyMeasure(m *model.MeasureNotification) {
+	bodyOutBytes, err := json.Marshal(m)
+	if err == nil {
+		json := string(bodyOutBytes)
+		self.Notify("sensor", json)
+		// self.SensorChannel <- json
+	} else {
+		log.Printf("JSON error: %v", err)
+	}
 }
 
 func (self *DBProvider) Notify(channel string, payload string) {
