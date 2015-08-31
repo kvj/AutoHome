@@ -19,7 +19,6 @@ import (
 var (
 	dbProvider *data.DBProvider
 	config     data.HashMap
-	cache      []*appSensor
 )
 
 func dataFolder() string {
@@ -162,25 +161,6 @@ func dataApiHandler(body interface{}) (interface{}, string) {
 	return response, ""
 }
 
-func fromCache(sensor *appSensor) *appSensor {
-	for _, s := range cache {
-		if (sensor.Device == s.Device) && (sensor.Type == s.Type) && (sensor.Index == s.Index) && (sensor.Measure == s.Measure) {
-			return s
-		}
-	}
-	return nil
-}
-
-func toCache(sensor *appSensor) {
-	s := fromCache(sensor)
-	if s == nil {
-		cache = append(cache, sensor)
-		s = sensor
-	}
-	s.Value = sensor.Value
-	s.Timestamp = sensor.Timestamp
-}
-
 func latestApiHandler(body interface{}) (interface{}, string) {
 	sensorsBody, ok := body.(*appSensors)
 	if !ok {
@@ -188,21 +168,13 @@ func latestApiHandler(body interface{}) (interface{}, string) {
 	}
 	for idx, _ := range sensorsBody.Sensors {
 		sensor := &sensorsBody.Sensors[idx]
-		s := fromCache(sensor)
-		if (s == nil) || sensorsBody.Actual {
-			value, time, err := dbProvider.LatestMeasure(sensor.Device, sensor.Type, sensor.Index, sensor.Measure)
-			if err != nil {
-				log.Printf("Failed to load data: %v", err)
-				return nil, "DB error"
-			}
-			sensor.Value = value
-			sensor.Timestamp = time.Unix() * 1000
-			toCache(sensor)
-			// log.Printf("Data loaded: %v %v", value, time.Unix())
-		} else {
-			sensor.Value = s.Value
-			sensor.Timestamp = s.Timestamp
+		value, time, err := dbProvider.LatestMeasure(sensor.Device, sensor.Type, sensor.Index, sensor.Measure)
+		if err != nil {
+			log.Printf("Failed to load data: %v", err)
+			return nil, "DB error"
 		}
+		sensor.Value = value
+		sensor.Timestamp = time.Unix() * 1000
 	}
 	return sensorsBody, ""
 }
@@ -559,7 +531,6 @@ func startSensorListener() {
 
 func StartServer(conf data.HashMap, db *data.DBProvider) {
 	dbProvider = db
-	cache = []*appSensor{}
 	config = conf
 	startSensorListener()
 	initPlugins()
