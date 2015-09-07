@@ -389,9 +389,29 @@ type weatherPluginConfig struct {
 	ParseKeys []string `json:"parseDestination,omitEmpty"`
 }
 
+type forwardItem struct {
+	Device      int    `json:"device"`
+	Index       int    `json:"index"`
+	Type        int    `json:"type"`
+	Measure     int    `json:"measure"`
+	Destination string `json:"destination"`
+	Id          string `json:"id"`
+}
+
+type measurePush struct {
+	Type    string                     `json:"type"`
+	Id      string                     `json:"id"`
+	Measure *model.MeasureNotification `json:"measure"`
+}
+
+type forwardConfig struct {
+	Routes []forwardItem `json:"routes"`
+}
+
 type weatherPushMessage struct {
-	Name    string `json:"name"`
+	Type    string `json:"type"`
 	Title   string `json:"title"`
+	Name    string `json:"name"`
 	Message string `json:"message"`
 }
 
@@ -408,6 +428,7 @@ func weatherPlugin(configData json.RawMessage) {
 		for message := range channel {
 			log.Printf("New Message:", message)
 			push := weatherPushMessage{
+				Type:    "message",
 				Name:    conf.Widget,
 				Title:   message.Title,
 				Message: strings.Join(message.Forecast, "\n"),
@@ -420,10 +441,60 @@ func weatherPlugin(configData json.RawMessage) {
 	}()
 }
 
+func forwardPlugin(configData json.RawMessage) {
+	appConf := loadConfig()
+	conf := &forwardConfig{}
+	err := json.Unmarshal(configData, conf)
+	if err != nil {
+		log.Fatal("Forward config parse failed: %v", err)
+	}
+	sseIndex += 1
+	sensorChan := make(chan string)
+	sseHandlers[sseIndex] = sensorChan
+	go func() {
+		for m := range sensorChan {
+			measure := &model.MeasureNotification{}
+			err = json.Unmarshal([]byte(m), measure)
+			if err != nil {
+				log.Printf("Invalid measure JSON:", err, m)
+				continue
+			}
+			// log.Printf("New measure:", measure)
+			for _, r := range conf.Routes {
+				if r.Device != -1 && r.Device != measure.Device {
+					continue
+				}
+				if r.Type != -1 && r.Type != measure.Type {
+					continue
+				}
+				if r.Index != -1 && r.Index != measure.Index {
+					continue
+				}
+				if r.Measure != -1 && r.Measure != measure.Measure {
+					continue
+				}
+				// log.Printf("Will forward:", r.Destination, measure)
+				push := &measurePush{
+					Type:    "measure",
+					Id:      r.Id,
+					Measure: measure,
+				}
+				pushError := internet.SendParsePush(push, appConf.ParseAPIKey, []string{r.Destination})
+				if nil != pushError {
+					log.Printf("Push error: %v", pushError)
+				}
+			}
+		}
+	}()
+}
+
 func initPlugins() {
 	plugins = make(pluginsMap)
 	plugins["weather"] = &pluginDefinition{
 		configHandler: weatherPlugin,
+	}
+	plugins["forward"] = &pluginDefinition{
+		configHandler: forwardPlugin,
 	}
 	conf := loadConfig()
 	for _, c := range conf.Plugins {
