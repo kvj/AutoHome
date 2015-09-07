@@ -663,6 +663,8 @@ class AppController
         else
           itemsTop.append(html)
       @sensors.push(obj)
+    itemsTop.append('<div style="clear: both;"></div>')
+    itemsBottom.append('<div style="clear: both;"></div>')
     return wrap
 
   onError: (message) =>

@@ -25,9 +25,10 @@ normalize = (a) ->
 class ValueSensorDisplay extends SensorDisplay
 
   initialize: ->
-    cont = $('<span></span>')
+    cont = $('<div></div>').addClass('sensor')
+    contWrap = $('<div></div>').addClass('sensor-wrap').appendTo(cont)
     @btn = @app.makeButton(
-      target: cont
+      target: contWrap
       text: '...'
       handler: =>
         @room.showDetail(@extra.detail) if @extra.detail
@@ -36,6 +37,12 @@ class ValueSensorDisplay extends SensorDisplay
       @show(data.value)
       # Refresh
     )
+    if @extra.single
+      cont.addClass('sensor-single')
+    if @extra.bar
+      contWrap.addClass('sensor-with-bar')
+      bar = $('<div></div>').addClass('bar').appendTo(contWrap)
+      @bar = $('<div></div>').addClass('bar-inner').appendTo(bar)
     return cont
 
   refresh: (actual) ->
@@ -49,6 +56,8 @@ class ValueSensorDisplay extends SensorDisplay
     if @extra.temp
       text = "#{Math.round(value*10) / 10}°"
     @btn.text(text)
+    if @bar
+      @bar.height("#{value}%")
 
 registerSensor('sensor_value', ValueSensorDisplay)
 

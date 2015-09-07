@@ -212,7 +212,6 @@ body {
     left: 0;
     right: 0;
     bottom: auto;
-    max-height: 100%;
 }
 
 .room-bottom {
@@ -221,7 +220,6 @@ body {
     left: 0;
     right: 0;
     top: auto;
-    max-height: 100%;
     text-align: right;
 }
 
@@ -347,3 +345,42 @@ body {
     .flex(0);
     text-align: right;
 }
+
+.sensor {
+    display: inline-block;
+}
+
+.sensor-single {
+    float: left;
+    clear: left;
+}
+
+.room-bottom {
+    .sensor-single {
+        float: right;
+        clear: right;
+    }
+}
+
+.sensor-with-bar {
+    .flex_horizontal();
+    button {
+        .flex(0);
+    }
+    .bar {
+        .flex(0);
+        margin: 3px;
+        width: 40px;
+        position: relative;
+        background-color: rgba(255, 0, 0, 0.1);
+    }
+    .bar-inner {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        background-color: #ff0000;
+    }
+}
+
