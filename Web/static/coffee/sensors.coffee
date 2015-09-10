@@ -312,7 +312,7 @@ class InlineGraphDisplay extends SensorDisplay
         if @extra.percent
           gap = 0
           min = 0
-          max = 100
+          max = 110
         yaxes.push({
           min: min-gap
           max: max+gap
@@ -418,11 +418,11 @@ WEATHER_DESIGN =
     shape: 'romb'
     color: 'grey'
   4:
-    shape: 'triangle2'
+    shape: 'circle'
     color: 'blue'
   5:
-    shape: 'triangle'
-    color: 'orange'
+    shape: 'triangle2'
+    color: 'blue'
   6:
     shape: 'triangle'
     color: 'cyan'
@@ -444,7 +444,7 @@ class DetailGraphDisplay extends SensorDisplay
         colors = []
         yaxes.push({
           min: 0
-          max: 100
+          max: 110
           show: yes
           position: "right"
           labelWidth: 30
