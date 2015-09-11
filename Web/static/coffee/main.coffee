@@ -104,8 +104,14 @@ class DetailsDialog
     days: 28
     title: '4W'
   ,
-    days: 84
-    title: '12W'
+    days: 90
+    title: '90D'
+  ,
+    days: 180
+    title: '180D'
+  ,
+    days: 365
+    title: '1Y'
   ]
 
   constructor: (@config) ->

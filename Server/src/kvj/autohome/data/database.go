@@ -8,12 +8,14 @@ import (
 	"github.com/lib/pq"
 	"kvj/autohome/model"
 	"log"
+	"math"
 	"time"
 )
 
 const (
-	TypeMeasure  = iota
-	TypeForecast = iota
+	TypeMeasure          = iota
+	TypeForecast         = iota
+	MaxRows      float64 = 100
 )
 
 type DBProvider struct {
@@ -110,6 +112,25 @@ func (self *DBProvider) DataForPeriod(table int, device, _type, index, measure i
 	if table == TypeForecast {
 		table_name = "forecast"
 	}
+	rows_count, err := self.db.Query("select count(*) from "+table_name+" where device=$1 and type=$2 and sensor=$3 and measure=$4 and at between $5 and $6", device, _type, index, measure, time.Unix(from/1000, 0), time.Unix(to/1000, 0))
+	if err != nil {
+		log.Printf("Failed to get count:", err)
+		return nil, nil, err
+	}
+	defer rows_count.Close()
+	var count = 0
+	if rows_count.Next() {
+		err = rows_count.Scan(&count)
+		if err != nil {
+			log.Printf("Failed to get count:", err)
+			return nil, nil, err
+		}
+	} else {
+		log.Printf("No results for Count SQL")
+	}
+	if count == 0 {
+		count = 1
+	}
 	rows, err := self.db.Query("select value, at from "+table_name+" where device=$1 and type=$2 and sensor=$3 and measure=$4 and at between $5 and $6 order by id", device, _type, index, measure, time.Unix(from/1000, 0), time.Unix(to/1000, 0))
 	if err != nil {
 		return nil, nil, err
@@ -117,6 +138,10 @@ func (self *DBProvider) DataForPeriod(table int, device, _type, index, measure i
 	defer rows.Close()
 	var values []float64
 	var times []*time.Time
+	var batch_count = 0
+	var batch_value = 0.0
+	var batch_size = int(math.Ceil(float64(count) / MaxRows))
+	var last_time *time.Time = nil
 	for rows.Next() {
 		var value float64
 		var time time.Time
@@ -124,9 +149,21 @@ func (self *DBProvider) DataForPeriod(table int, device, _type, index, measure i
 		if err != nil {
 			return nil, nil, err
 		}
-		values = append(values, value)
-		times = append(times, &time)
+		batch_count += 1
+		batch_value += value
+		last_time = &time
+		if batch_count == batch_size {
+			values = append(values, batch_value/float64(batch_count))
+			times = append(times, &time)
+			batch_count = 0
+			batch_value = 0.0
+		}
 	}
+	if batch_count > 0 {
+		values = append(values, batch_value/float64(batch_count))
+		times = append(times, last_time)
+	}
+	// log.Printf("Period", count, batch_size, batch_count, last_time, len(values))
 	// log.Printf("Data found:", device, _type, index, measure, value, time)
 	return values, times, nil // OK
 
