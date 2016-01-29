@@ -81,6 +81,14 @@ type appSeriesRequest struct {
 	Forecast bool        `json:"forecast"`
 }
 
+type appMessageRequest struct {
+	Title   string `json:"title"`
+	Channel string `json:"channel"`
+	Type    string `json:"type"`
+	Name    string `json:"name"`
+	Message string `json:"message"`
+}
+
 type appSeriesResponse struct {
 	Series [][]appSensor `json:"series"`
 }
@@ -125,6 +133,21 @@ func loadConfig() *appConfig {
 		log.Fatal("Parse failed: %v", err)
 	}
 	return obj
+}
+
+func messageApiHandler(body interface{}) (interface{}, string) {
+	appConf := loadConfig()
+	req, ok := body.(*appMessageRequest)
+	if !ok {
+		return nil, "Input data error"
+	}
+	req.Type = "message"
+	pushError := internet.SendParsePush(req, appConf.ParseAPIKey, []string{req.Channel})
+	if pushError != nil {
+		log.Printf("Push error: %v", pushError)
+		return nil, "Push error"
+	}
+	return &jsonEmpty{}, ""
 }
 
 func confApiHandler(body interface{}) (interface{}, string) {
@@ -619,6 +642,9 @@ func StartServer(conf data.HashMap, db *data.DBProvider) {
 	http.HandleFunc("/api/data", addApiCall(func() interface{} {
 		return &appSeriesRequest{}
 	}, dataApiHandler))
+	http.HandleFunc("/api/message", addApiCall(func() interface{} {
+		return &appMessageRequest{}
+	}, messageApiHandler))
 	http.HandleFunc("/api/camera/snapshot", addApiCallRaw(func() interface{} {
 		return &cameraSnapshot{}
 	}, cameraSnapshotHandler))
