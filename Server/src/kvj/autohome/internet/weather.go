@@ -118,6 +118,26 @@ func code2Text(code int) string {
 	return "???"
 }
 
+func Code2Char(code float64) string {
+	switch code {
+	case 6:
+		return "N"
+	case 4:
+		return "R"
+	case 5:
+		return "T"
+	case 1:
+		return "S"
+	case 3:
+		return "C"
+	case 2:
+		return "C"
+	case 7:
+		return "F"
+	}
+	return "?"
+}
+
 func str2Float(value string) float64 {
 	f, err := strconv.ParseFloat(value, 64)
 	if err != nil {
@@ -277,14 +297,14 @@ type InfoMaker struct {
 	db      *data.DBProvider
 }
 
-func formatTemp(val float64) string {
+func FormatTemp(val float64) string {
 	if float64(int(val)) != val {
 		return fmt.Sprintf("%.1fC", val)
 	}
 	return fmt.Sprintf("%.fC", val)
 }
 
-func formatWindDirection(val float64) string {
+func FormatWindDirection(val float64) string {
 	step := 22.5
 	directions := []string{"N", "NE", "E", "SE", "S", "SW", "W", "NW", "N"}
 	value := step
@@ -342,7 +362,7 @@ func (self *InfoMaker) makeLatest() (string, error) {
 		log.Printf("Failed to get value: %v", err)
 		return "", err
 	}
-	result := fmt.Sprintf("%s %s %v %v %.f%%", formatTemp(temp), code2Text(int(cond)), formatWindDirection(wdir), wind, hum)
+	result := fmt.Sprintf("%s %s %v %v %.f%%", FormatTemp(temp), code2Text(int(cond)), FormatWindDirection(wdir), wind, hum)
 	return result, nil
 }
 
@@ -372,7 +392,7 @@ func (self *InfoMaker) makeForecastLine(hours int) (string, error) {
 		log.Printf("Failed to get value: %v", err)
 		return "", err
 	}
-	result := fmt.Sprintf("%dH: %s %s %.f%% %v %v", hours, formatTemp(temp), code2Text(int(cond)), rain, formatWindDirection(wdir), wind)
+	result := fmt.Sprintf("%dH: %s %s %.f%% %v %v", hours, FormatTemp(temp), code2Text(int(cond)), rain, FormatWindDirection(wdir), wind)
 	return result, nil
 }
 

@@ -284,3 +284,17 @@ func MakeConfig() HashMap {
 	result["ffmpeg"] = *ffmpegVar
 	return result
 }
+
+func MakeStatusConfig() HashMap {
+	var result = HashMap{}
+	var serverVar = flag.String("server", "https://t.kvj.me/h/", "Autohome server")
+	var keyVar = flag.String("key", "", "Auth key")
+	flag.Parse()
+	if !flag.Parsed() {
+		flag.PrintDefaults()
+		return nil
+	}
+	result["server"] = *serverVar
+	result["key"] = *keyVar
+	return result
+}
