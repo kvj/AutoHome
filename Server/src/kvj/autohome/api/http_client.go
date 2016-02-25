@@ -78,7 +78,9 @@ func loadLatest(conf data.HashMap) (map[string]float64, error) {
 	return result, err
 }
 
-const bar = "_\\|/"
+const bar = "-\\|/"
+
+// const bar = "▁▂▃▄▅▆▇█"
 
 func makeBar(val float64, max float64) string {
 	idx := int(math.Floor(val / max * float64(len(bar)+1)))
