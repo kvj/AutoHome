@@ -8,6 +8,12 @@ services:
             - data-master:/data
     app:
         image: kvorobyev/autohome:poll_arm
+        privileged: true
+        devices:
+            - "/dev/rfcomm0"
+            - "/dev/rfcomm1"
+            - "/dev/rfcomm2"
+            - "/dev/rfcomm3"
         links:
             - db
 volumes:
