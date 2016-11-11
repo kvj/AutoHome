@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/lib/pq"
+	_ "github.com/lib/pq"
 	"kvj/autohome/model"
 	"log"
 	"math"
@@ -20,7 +20,6 @@ const (
 
 type DBProvider struct {
 	db             *sql.DB
-	listener       *pq.Listener
 	SensorChannel  chan string
 	CommandChannel chan string
 }
@@ -28,7 +27,7 @@ type DBProvider struct {
 type HashMap map[string]string
 
 func OpenDB(config HashMap) *DBProvider {
-	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
+	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		config["dbuser"],
 		config["dbpass"],
 		config["dbhost"],
@@ -38,49 +37,11 @@ func OpenDB(config HashMap) *DBProvider {
 	if err != nil {
 		log.Fatal("DB open error: %v", err)
 	}
-	reportProblem := func(ev pq.ListenerEventType, err error) {
-		if err != nil {
-			log.Printf("Listener error: %v", err.Error())
-		}
-	}
-	listener := pq.NewListener(url, 10*time.Second, time.Hour, reportProblem)
-	err = listener.Listen("sensor")
-	if err != nil {
-		log.Fatal("DB channel open error: %v", err)
-	}
-	err = listener.Listen("command")
-	if err != nil {
-		log.Fatal("DB channel2 open error: %v", err)
-	}
 	provider := &DBProvider{
 		db:             db,
-		listener:       listener,
 		SensorChannel:  make(chan string),
 		CommandChannel: make(chan string),
 	}
-	go func() {
-		for {
-			select {
-			case <-time.Tick(2 * time.Minute):
-				pingErr := listener.Ping()
-				if pingErr != nil {
-					log.Printf("Ping error: %v", pingErr)
-				}
-				continue
-			case n := <-listener.Notify:
-				// log.Printf("From channel:", n.Channel, n.Extra)
-				if n.Channel == "sensor" {
-					provider.SensorChannel <- n.Extra
-					continue
-				}
-				if n.Channel == "command" {
-					provider.CommandChannel <- n.Extra
-					continue
-				}
-				log.Printf("Unknown message: %v", n)
-			}
-		}
-	}()
 	return provider
 }
 
@@ -96,15 +57,6 @@ func (self *DBProvider) NotifyMeasure(m *model.MeasureNotification) {
 }
 
 func (self *DBProvider) Notify(channel string, payload string) {
-	go func() {
-		rows, err := self.db.Query("NOTIFY " + channel + ", '" + payload + "'")
-		if err != nil {
-			log.Printf("Failed to notify %v: %v", channel, err)
-			return
-		}
-		rows.Close()
-		// log.Printf("Notify OK")
-	}()
 }
 
 func (self *DBProvider) DataForPeriod(table int, device, _type, index, measure int, from, to int64) ([]float64, []*time.Time, error) {
@@ -255,16 +207,16 @@ func (self *DBProvider) AddMeasures(table int, device int, measures []*model.Mea
 
 func MakeConfig() HashMap {
 	var result = HashMap{}
-	var dbVar = flag.String("db", "arduino", "DB Name")
-	var dbhostVar = flag.String("dbhost", "localhost", "DB Hostname")
+	var dbVar = flag.String("db", "app", "DB Name")
+	var dbhostVar = flag.String("dbhost", "db", "DB Hostname")
 	var dbportVar = flag.String("dbport", "5432", "DB Port")
-	var dbuserVar = flag.String("dbuser", "arduino", "DB Username")
-	var dbpassVar = flag.String("dbpass", "arduino", "DB Password")
+	var dbuserVar = flag.String("dbuser", "app", "DB Username")
+	var dbpassVar = flag.String("dbpass", "app", "DB Password")
 	var portVar = flag.String("port", "9100", "HTTP port")
 	var cameraPortVar = flag.String("camera-port", "9101", "HTTP camera port")
 	var cameraURLVar = flag.String("camera-url", "rtsp://%s:554/user=admin&password=&channel=1&stream=0.sdp", "HTTP camera port")
 	var ffmpegVar = flag.String("ffmpeg", "ffmpeg", "Path to ffmpeg")
-	var pathVar = flag.String("path", "../Web", "Data folder")
+	var pathVar = flag.String("path", "/web", "Data folder")
 	var fileVar = flag.String("file", "config.json", "Configuration file")
 	flag.Parse()
 	if !flag.Parsed() {

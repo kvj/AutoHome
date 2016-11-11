@@ -14,20 +14,11 @@ var coffeePath = 'static/coffee/**/*.coffee';
 var jsPath = 'static/js/';
 
 gulp.task('less', function() {
-    return gulp
-        .src(lessPath).pipe(watch(lessPath, function(files) {
-            return files.pipe(less({
-            })).pipe(gulp.dest(cssPath));
-        }));
+    return gulp.src(lessPath).pipe(less({})).pipe(gulp.dest(cssPath));
 });
 
 gulp.task('coffee', function() {
-    return gulp
-        .src(coffeePath).pipe(watch(coffeePath, function(files) {
-            return files.pipe(coffee({
-                bare: true
-            }).on('error', gutil.log)).pipe(gulp.dest(jsPath));
-        }));
+    return gulp.src(coffeePath).pipe(coffee({bare: true}).on('error', gutil.log)).pipe(gulp.dest(jsPath));
 });
 
-gulp.task('default', ['less', 'coffee']);
+gulp.task('dist', ['less', 'coffee']);

@@ -1,0 +1,19 @@
+version: '2'
+services:
+    db:
+        image: kvorobyev/autohome:db_standby
+        build:
+            context: db-standby/
+        volumes:
+            - data-standby:/data
+    app:
+        image: kvorobyev/autohome:web_x64
+        build:
+            context: ..
+            dockerfile: Docker/web-app/Dockerfile
+        ports:
+            - "9100:9100"
+volumes:
+    data-standby:
+
+

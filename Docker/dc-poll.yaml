@@ -1,0 +1,22 @@
+version: '2'
+services:
+    db:
+        image: kvorobyev/autohome:db_master
+        build:
+            context: db-master/
+        ports:
+            - "54321:5432"
+        volumes:
+            - data-master:/data
+    app:
+        image: kvorobyev/autohome:poll_arm
+        build:
+            context: ..
+            dockerfile: Docker/poll-app/Dockerfile
+        links:
+            - db
+volumes:
+    data-master:
+
+
+

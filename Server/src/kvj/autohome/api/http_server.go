@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"kvj/autohome/data"
-	"kvj/autohome/internet"
 	"kvj/autohome/model"
 	"log"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -99,11 +97,10 @@ type pluginConfig struct {
 }
 
 type appConfig struct {
-	Keys        []string         `json:"keys"`
-	Layout      []appLayout      `json:"layout"`
-	Plugins     []pluginConfig   `json:"plugins,omitempty"`
-	ParseAPIKey string           `json:"parseAPIKey"`
-	Incoming    []incomingConfig `json:"gateway"`
+	Keys     []string         `json:"keys"`
+	Layout   []appLayout      `json:"layout"`
+	Plugins  []pluginConfig   `json:"plugins,omitempty"`
+	Incoming []incomingConfig `json:"gateway"`
 }
 
 type pushMessage struct {
@@ -133,21 +130,6 @@ func loadConfig() *appConfig {
 		log.Fatal("Parse failed: %v", err)
 	}
 	return obj
-}
-
-func messageApiHandler(body interface{}) (interface{}, string) {
-	appConf := loadConfig()
-	req, ok := body.(*appMessageRequest)
-	if !ok {
-		return nil, "Input data error"
-	}
-	req.Type = "message"
-	pushError := internet.SendParsePush(req, appConf.ParseAPIKey, []string{req.Channel})
-	if pushError != nil {
-		log.Printf("Push error: %v", pushError)
-		return nil, "Push error"
-	}
-	return &jsonEmpty{}, ""
 }
 
 func confApiHandler(body interface{}) (interface{}, string) {
@@ -408,11 +390,10 @@ var plugins pluginsMap
 var gatewayConfig gatewayMap
 
 type weatherPluginConfig struct {
-	Interval  int      `json:"interval"`
-	Device    int      `json:"device"`
-	Sensor    int      `json:"sensor"`
-	Widget    string   `json:"widget"`
-	ParseKeys []string `json:"parseDestination,omitEmpty"`
+	Interval int    `json:"interval"`
+	Device   int    `json:"device"`
+	Sensor   int    `json:"sensor"`
+	Widget   string `json:"widget"`
 }
 
 type forwardItem struct {
@@ -441,87 +422,8 @@ type weatherPushMessage struct {
 	Message string `json:"message"`
 }
 
-func weatherPlugin(configData json.RawMessage) {
-	appConf := loadConfig()
-	conf := &weatherPluginConfig{}
-	err := json.Unmarshal(configData, conf)
-	if err != nil {
-		log.Fatal("Weather config parse failed: %v", err)
-	}
-	log.Printf("Configuring weather plugin", conf)
-	channel := internet.StartWeatherNotifier(dbProvider, conf.Device, conf.Sensor, conf.Interval)
-	go func() {
-		for message := range channel {
-			log.Printf("New Message:", message)
-			push := weatherPushMessage{
-				Type:    "message",
-				Name:    conf.Widget,
-				Title:   message.Title,
-				Message: strings.Join(message.Forecast, "\n"),
-			}
-			pushError := internet.SendParsePush(push, appConf.ParseAPIKey, conf.ParseKeys)
-			if nil != pushError {
-				log.Printf("Push error: %v", pushError)
-			}
-		}
-	}()
-}
-
-func forwardPlugin(configData json.RawMessage) {
-	appConf := loadConfig()
-	conf := &forwardConfig{}
-	err := json.Unmarshal(configData, conf)
-	if err != nil {
-		log.Fatal("Forward config parse failed: %v", err)
-	}
-	sseIndex += 1
-	sensorChan := make(chan string)
-	sseHandlers[sseIndex] = sensorChan
-	go func() {
-		for m := range sensorChan {
-			measure := &model.MeasureNotification{}
-			err = json.Unmarshal([]byte(m), measure)
-			if err != nil {
-				log.Printf("Invalid measure JSON:", err, m)
-				continue
-			}
-			// log.Printf("New measure:", measure)
-			for _, r := range conf.Routes {
-				if r.Device != -1 && r.Device != measure.Device {
-					continue
-				}
-				if r.Type != -1 && r.Type != measure.Type {
-					continue
-				}
-				if r.Index != -1 && r.Index != measure.Index {
-					continue
-				}
-				if r.Measure != -1 && r.Measure != measure.Measure {
-					continue
-				}
-				// log.Printf("Will forward:", r.Destination, measure)
-				push := &measurePush{
-					Type:    "measure",
-					Id:      r.Id,
-					Measure: measure,
-				}
-				pushError := internet.SendParsePush(push, appConf.ParseAPIKey, []string{r.Destination})
-				if nil != pushError {
-					log.Printf("Push error: %v", pushError)
-				}
-			}
-		}
-	}()
-}
-
 func initPlugins() {
 	plugins = make(pluginsMap)
-	plugins["weather"] = &pluginDefinition{
-		configHandler: weatherPlugin,
-	}
-	plugins["forward"] = &pluginDefinition{
-		configHandler: forwardPlugin,
-	}
 	conf := loadConfig()
 	for _, c := range conf.Plugins {
 		p, present := plugins[c.Name]
@@ -585,37 +487,6 @@ func saveMeasures(id string, values []pushValue) {
 	}
 }
 
-func startPushListener() {
-	appConf := loadConfig()
-	gatewayConfig = make(gatewayMap)
-	for _, c := range appConf.Incoming {
-		gatewayConfig[c.Name] = c
-	}
-	folder := dataFolder()
-	ch := internet.StartPushListener(folder, appConf.ParseAPIKey)
-	go func() {
-		for data := range ch {
-			message := &pushIncomingMessage{}
-			err := json.Unmarshal(data, message)
-			if err != nil {
-				log.Printf("Unrecognized message: %v %v", err, data)
-				continue
-			}
-			// log.Printf("Message:", message)
-			if message.Type == "measure" {
-				if len(message.Values) == 0 {
-					// Single mode
-					message.Values = []pushValue{pushValue{
-						Measure: message.Measure,
-						Value:   message.Value,
-					}}
-				}
-				saveMeasures(message.Id, message.Values)
-			}
-		}
-	}()
-}
-
 func startSensorListener() {
 	go func() {
 		for str := range dbProvider.SensorChannel {
@@ -631,7 +502,6 @@ func StartServer(conf data.HashMap, db *data.DBProvider) {
 	config = conf
 	startSensorListener()
 	initPlugins()
-	startPushListener()
 	setupStatic()
 	http.HandleFunc("/api/config", addApiCall(func() interface{} {
 		return &jsonEmpty{}
@@ -642,9 +512,6 @@ func StartServer(conf data.HashMap, db *data.DBProvider) {
 	http.HandleFunc("/api/data", addApiCall(func() interface{} {
 		return &appSeriesRequest{}
 	}, dataApiHandler))
-	http.HandleFunc("/api/message", addApiCall(func() interface{} {
-		return &appMessageRequest{}
-	}, messageApiHandler))
 	http.HandleFunc("/api/camera/snapshot", addApiCallRaw(func() interface{} {
 		return &cameraSnapshot{}
 	}, cameraSnapshotHandler))

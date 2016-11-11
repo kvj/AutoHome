@@ -1,0 +1,22 @@
+version: '2'
+services:
+    db-master:
+        image: kvorobyev/autohome:db_master
+        build:
+            context: db-master/
+        volumes:
+            - data-master:/data
+    db-standby:
+        image: kvorobyev/autohome:db_standby
+        build:
+            context: db-standby/
+        volumes:
+            - data-standby:/data
+        links:
+            - db-master
+volumes:
+    data-standby:
+    data-master:
+
+
+
