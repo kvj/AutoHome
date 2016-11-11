@@ -1,7 +1,7 @@
 FROM armhf/alpine:edge
 
 RUN mkdir -p /build/src /app
-RUN apk add --no-cache go
+RUN apk add --no-cache go ffmpeg
 
 ADD Server/src /build/src
 

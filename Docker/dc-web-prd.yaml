@@ -1,13 +1,16 @@
 version: '2'
 services:
-    db:
-        image: kvorobyev/autohome:db_standby
-        volumes:
-            - data-standby:/data
+    #db:
+    #    image: kvorobyev/autohome:db_standby
+    #    volumes:
+    #        - data-standby:/data
     app:
         image: kvorobyev/autohome:web_x64
         ports:
             - "9100:9100"
+        command: ["/app/server_run", "--dbhost=172.16.128.5", "--dbport=54321", "--file=conf/config.json"]
+        volumes:
+            - /home/ubuntu/conf:/web/conf
 volumes:
     data-standby:
 

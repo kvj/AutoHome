@@ -404,7 +404,7 @@ class AppController
   KEY_UI_DARK: 'ui_dark'
   KEY_NET_FORCE: 'net_force'
   KEY_NET_LINK: 'net_link'
-  POLL_INTERVAL_SEC: 60 * 10
+  POLL_INTERVAL_SEC: 60
 
   constructor: ->
     @storage = new Storage()
