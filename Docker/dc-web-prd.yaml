@@ -1,0 +1,13 @@
+version: '2'
+services:
+    db:
+        image: kvorobyev/autohome:db_standby
+        volumes:
+            - data-standby:/data
+    app:
+        image: kvorobyev/autohome:web_x64
+        ports:
+            - "9100:9100"
+volumes:
+    data-standby:
+
