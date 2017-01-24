@@ -10,7 +10,7 @@ services:
             - "9100:9100"
         command: ["/app/server_run", "--dbhost=172.16.128.5", "--dbport=54321", "--file=conf/config.json"]
         volumes:
-            - /home/ubuntu/conf:/web/conf
+            - /home/vorobev/autohome:/web/conf
 volumes:
     data-standby:
 
